@@ -546,7 +546,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.7';
+const APP_VERSION='4.8';
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
@@ -1101,7 +1101,9 @@ function bacaHasil(text){
 function namaNorm(s){ return String(s||'').toLowerCase().replace(/[^a-zÀ-ɏ ]+/g,' ').replace(/\s+/g,' ').trim(); }
 function normAbsen(s){ const t=String(s==null?'':s).trim().toLowerCase().replace(/^no\.?\s*/,''); return /^\d+$/.test(t)?String(parseInt(t,10)):t; }
 function daftarKelas(){ return [...new Set(S.siswa.map(s=>(s.kelas||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'id')); }
-function kandidatKelas(kelas){ return kelas?S.siswa.filter(s=>norm(s.kelas)===norm(kelas)):S.siswa; }
+const KELAS_TETAP=['1A','1B','2A','2B','3A','3B','4A','4B','5A','5B','6A','6B'];
+function pilihanKelas(){ const ada=daftarKelas(); return [...KELAS_TETAP,...ada.filter(k=>!KELAS_TETAP.some(x=>norm(x)===norm(k)))]; }
+function kandidatKelas(kelas){ if(!kelas||!daftarKelas().length) return S.siswa; return S.siswa.filter(s=>norm(s.kelas)===norm(kelas)); }
 function tebakNama(x,kand){
   const nm=namaNorm(x.nama); if(!nm) return '';
   const hasil=[];
@@ -1470,14 +1472,14 @@ function stepKunci(m){
 }
 function stepKoreksi(m){
   if(!m.kunci.length) return `<div class="note">Isi kunci jawaban dulu di langkah 2.</div>`;
-  const kl=daftarKelas();
-  if(kl.length===1&&!ui.batchKelas) ui.batchKelas=kl[0];
+  const kl=pilihanKelas(), ada=daftarKelas();
+  if(ada.length===1&&!ui.batchKelas) ui.batchKelas=ada[0];
   const p=ui.parsed;
   const sisK=kandidatKelas(ui.batchKelas);
   const tanpaAbsen=sisK.filter(s=>!normAbsen(s.absen)).length;
   const tv=m.kunci.filter(k=>k.cek&&k.cek.status==='tidak_terverifikasi').map(k=>k.no);
   return `<div class="card"><h2>Tahap A. Salin ulang jawaban dari foto (${esc(m.nama)})</h2>
-  ${kl.length?`<div class="row"><label><b>Kelas batch ini</b></label><select data-on="batch-kelas"><option value="">-- pilih kelas --</option>${kl.map(k=>`<option ${ui.batchKelas===k?'selected':''}>${esc(k)}</option>`).join('')}</select><span class="muted">Satu batch, satu kelas. Siswa dikenali dari nomor absen di lembar.</span></div>`:`<div class="note">Daftar siswa belum memakai kelas. Aplikasi mencocokkan dari nomor absen di seluruh daftar.</div>`}
+  <div class="row"><label><b>Kelas batch ini</b></label><select data-on="batch-kelas"><option value="">-- pilih kelas --</option>${kl.map(k=>`<option ${ui.batchKelas===k?'selected':''}>${esc(k)}</option>`).join('')}</select><span class="muted">Satu batch, satu kelas. Siswa dikenali dari nomor absen di lembar.</span></div>
   ${tv.length?`<div class="note">Kunci nomor ${esc(tv.join(', '))} belum terverifikasi. Pastikan kuncinya benar sebelum mengoreksi.</div>`:''}
   ${tanpaAbsen?`<div class="note">${tanpaAbsen} siswa di daftar belum punya nomor absen, jadi tidak bisa dicocokkan otomatis. Lengkapi di tab Agenda & Siswa.</div>`:''}
   <ol class="g">
