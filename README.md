@@ -1,4 +1,4 @@
-# Korektor Asesmen MI
+# Kelas Pakree - Korektor Lembar Jawab Siswa
 
 Aplikasi pengoreksi lembar jawab asesmen untuk guru Madrasah Ibtidaiyah. Satu berkas HTML yang berjalan di browser, bisa dipasang dan dipakai tanpa internet. Claude (claude.ai) dipakai lewat salin dan tempel.
 

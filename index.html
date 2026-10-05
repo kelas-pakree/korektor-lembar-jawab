@@ -9,7 +9,7 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Korektor Asesmen MI</title>
+<title>Kelas Pakree - Korektor Lembar Jawab Siswa</title>
 <style>
 :root{
   --bg:#f6f4ee; --card:#ffffff; --ink:#23302b; --muted:#667a71; --line:#dfe6e1;
@@ -546,7 +546,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.6';
+const APP_VERSION='4.7';
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
@@ -1365,7 +1365,7 @@ async function unduhArsip(){
 function render(){
   const y=window.scrollY;
   const tabs=[['beranda','Agenda & Siswa'],['mapel','Mata Pelajaran'],['rekap','Rekap & Unduh'],['panduan','Panduan'],['pengaturan','Pengaturan']];
-  $('#app').innerHTML=`<header class="top"><h1>Korektor Asesmen MI</h1>${S.agenda?`<span class="chip">${esc(S.agenda.nama)}</span>`:''}${idbOK?'':'<span class="chip">Mode terbatas: berkas tidak tersimpan</span>'}</header>
+  $('#app').innerHTML=`<header class="top"><h1>Kelas Pakree - Korektor Lembar Jawab Siswa</h1>${S.agenda?`<span class="chip">${esc(S.agenda.nama)}</span>`:''}${idbOK?'':'<span class="chip">Mode terbatas: berkas tidak tersimpan</span>'}</header>
   <nav class="tabs">${tabs.map(([k,l])=>`<button data-act="tab" data-v="${k}" class="${ui.tab===k?'on':''}">${l}</button>`).join('')}</nav>
   <main>${viewTab()}</main>`;
   window.scrollTo(0,y);

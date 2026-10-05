@@ -1,6 +1,6 @@
 {
-  "name": "Korektor Asesmen MI",
-  "short_name": "Korektor MI",
+  "name": "Kelas Pakree - Korektor Lembar Jawab Siswa",
+  "short_name": "Kelas Pakree",
   "description": "Pengoreksi lembar jawab asesmen untuk guru MI, dengan Claude sebagai pengolah.",
   "lang": "id",
   "start_url": "./",
