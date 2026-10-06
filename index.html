@@ -546,7 +546,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.10';
+const APP_VERSION='4.11';
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
@@ -651,6 +651,7 @@ function isianOtomatis(it,jw){
 }
 /* Penyebut skor uraian: jumlah yang diminta soal (N). Tanpa N: pointer dianggap meminta 3 hal (atau semua poin bila kurang dari 3); non-pointer: sekitar 80% unsur kunci sudah lengkap */
 function jumlahDiminta(it){ const n=parseInt(it.diminta,10); return n>0?n:0; }
+function peringatanKata(it){ const P=(it.poin||[]).length; const nk=(it.kata||[]).filter((x,j)=>String(x||'').trim()&&j>=P).length; return nk?`<div class="note" style="margin:4px 0">Ada ${nk} baris kata kunci di luar jumlah poin (${P}), jadi belum dipakai. Untuk menambah jawaban alternatif, tulis poinnya di kotak <b>Poin kunci</b> di atas, pada baris yang sama nomornya.</div>`:''; }
 function bentukUraian(it){ return it.bentuk==='narasi'?'narasi':'pointer'; }
 function penyebutUraian(it){ const P=(it.poin||[]).length; const N=jumlahDiminta(it); if(N>0) return N; return bentukUraian(it)==='pointer'?Math.max(1,Math.min(3,P)):Math.max(1,Math.round(P*0.8)); }
 function skorUraian(it,a,jw){
@@ -1475,7 +1476,7 @@ function bannerKunci(m){
 function stepKunci(m){
   const rows=m.kunci.map((it,i)=>{
     let isi='';
-    if(it.jenis==='URAIAN') isi=`<textarea dir="auto" data-on="k-field" data-i="${i}" data-f="poin" placeholder="Satu poin kunci per baris" style="min-height:70px">${esc((it.poin||[]).join('\n'))}</textarea><textarea dir="auto" data-on="k-field" data-i="${i}" data-f="kata" placeholder="Kata kunci per poin (opsional): satu baris per poin, pisahkan kata dengan koma" style="min-height:50px;margin-top:4px">${esc((it.kata||[]).join('\n'))}</textarea><label class="muted" style="display:block;margin-top:4px">Bentuk jawaban: <select data-on="k-field" data-i="${i}" data-f="bentuk"><option value="pointer"${bentukUraian(it)==='pointer'?' selected':''}>Pointer (butir-butir)</option><option value="narasi"${bentukUraian(it)==='narasi'?' selected':''}>Non-pointer (penjelasan)</option></select></label><label class="muted" style="display:block;margin-top:4px">Jumlah yang diminta soal (N): <input type="number" min="1" data-on="k-field" data-i="${i}" data-f="diminta" value="${esc(it.diminta||'')}" style="width:70px"> ${bentukUraian(it)==='pointer'?'kosong = 3':'kosongkan bila tidak disebut'}</label>`;
+    if(it.jenis==='URAIAN') isi=`<div class="muted" style="margin-bottom:2px"><b>Poin kunci</b> (tampil di dokumen siswa; satu poin per baris, tambahkan alternatif di baris paling bawah)</div><textarea dir="auto" data-on="k-field" data-i="${i}" data-f="poin" placeholder="Satu poin kunci per baris" style="min-height:70px">${esc((it.poin||[]).join('\n'))}</textarea><div class="muted" style="margin:6px 0 2px"><b>Kata kunci per poin</b> (petunjuk penilaian, tidak tampil; baris ke-N untuk poin ke-N)</div><textarea dir="auto" data-on="k-field" data-i="${i}" data-f="kata" placeholder="Kata kunci per poin (opsional): satu baris per poin, pisahkan kata dengan koma" style="min-height:50px">${esc((it.kata||[]).join('\n'))}</textarea><div data-warn="${i}">${peringatanKata(it)}</div><label class="muted" style="display:block;margin-top:4px">Bentuk jawaban: <select data-on="k-field" data-i="${i}" data-f="bentuk"><option value="pointer"${bentukUraian(it)==='pointer'?' selected':''}>Pointer (butir-butir)</option><option value="narasi"${bentukUraian(it)==='narasi'?' selected':''}>Non-pointer (penjelasan)</option></select></label><label class="muted" style="display:block;margin-top:4px">Jumlah yang diminta soal (N): <input type="number" min="1" data-on="k-field" data-i="${i}" data-f="diminta" value="${esc(it.diminta||'')}" style="width:70px"> ${bentukUraian(it)==='pointer'?'kosong = 3':'kosongkan bila tidak disebut'}</label>`;
     else if(it.jenis==='ISIAN') isi=`<input dir="auto" data-on="k-field" data-i="${i}" data-f="kunci" value="${esc(it.kunci)}" placeholder="Jawaban utama" style="width:100%"><input dir="auto" data-on="k-field" data-i="${i}" data-f="alt" value="${esc(it.alt||'')}" placeholder="Jawaban lain yang benar (pisahkan dengan ;)" style="width:100%;margin-top:4px">`;
     else if(it.jenis==='JODOH') isi=`<input dir="auto" data-on="k-field" data-i="${i}" data-f="kunci" value="${esc(it.kunci)}" placeholder="Opsi, contoh: C" style="width:100%"><input dir="auto" data-on="k-field" data-i="${i}" data-f="teks" value="${esc(it.teks||'')}" placeholder="Jawaban pada opsi itu (teks); beberapa penulisan dipisah ;" style="width:100%;margin-top:4px">`;
     else isi=`<input dir="auto" data-on="k-field" data-i="${i}" data-f="kunci" value="${esc(it.kunci)}" placeholder="${it.jenis==='PGK'?'Contoh: A,C':'Contoh: B'}" style="width:100%">`;
@@ -1839,6 +1840,7 @@ const ON={
     else if(f==='kata') it.kata=el.value.split('\n').map(s=>s.trim());
     else if(f==='jenis'){ it.jenis=el.value; save(); return render(); }
     else it[f]=el.value.trim();
+    if(f==='poin'||f==='kata'){ const w=document.querySelector('[data-warn="'+el.dataset.i+'"]'); if(w) w.innerHTML=peringatanKata(it); }
     save();
   },
   'bulk-jenis'(el){ ui.bulkJenis=el.value; },
