@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.13';
+const APP_VERSION='4.14';
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
@@ -768,6 +768,18 @@ function teksOtomatis(it,a,r){
 /* Baris "jawaban yang tepat" + rujukan materi untuk dokumen siswa (hanya bila skor belum penuh) */
 function rujukanMateri(it){ return (it.rujukan||'').trim()||((it.cek&&it.cek.status==='diubah_ikut_materi')?(it.cek.dasar||''):''); }
 function keteranganUraian(it){ if(it.jenis!=='URAIAN') return ''; const N=jumlahDiminta(it); const P=(it.poin||[]).length; if(!P) return ''; if(N) return `Soal ini meminta kamu menyebutkan ${N} hal.`; if(bentukUraian(it)==='pointer') return `Soal ini meminta kamu menyebutkan ${penyebutUraian(it)} hal.`; return 'Soal ini meminta jawaban selengkap mungkin.'; }
+/* Uraian: tiap bagian jadi blok sendiri (judul tebal berdiri sendiri, isi di baris bawahnya) */
+function blokUraian(it,a,sr){
+  const out=[]; const P=it.poin||[];
+  if(P.length){
+    const ok=new Set(((a&&a.poin_terpenuhi)||[]).map(Number));
+    const tampil=new Set(); P.forEach((_,i)=>{ if(ok.has(i+1)) tampil.add(i); }); for(let i=0;i<P.length&&tampil.size<10;i++) tampil.add(i);
+    const idx=[...tampil].sort((x,y)=>x-y).slice(0,Math.max(10,ok.size));
+    out.push('<b>Jawaban yang tepat</b>'+idx.map(i=>`<br><span style="display:inline-block;width:1.3em">${ok.has(i+1)?'&#10003;':''}</span>(${i+1}) ${esc(P[i])}`).join('')+(P.length>idx.length?`<br><span style="color:#555">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</span>`:''));
+  }
+  const rj=rujukanMateri(it); if(rj) out.push(`<b>Cek di materi</b><br>${esc(rj)}`);
+  return out;
+}
 function jawabanTepatHTML(it,a,sr){
   if(it.jenis!=='URAIAN'&&sr.skor>=sr.max) return '';
   let h='';
@@ -777,7 +789,7 @@ function jawabanTepatHTML(it,a,sr){
       const ok=new Set(((a&&a.poin_terpenuhi)||[]).map(Number));
       const tampil=new Set(); P.forEach((_,i)=>{ if(ok.has(i+1)) tampil.add(i); }); for(let i=0;i<P.length&&tampil.size<10;i++) tampil.add(i);
       const idx=[...tampil].sort((x,y)=>x-y).slice(0,Math.max(10,ok.size));
-      h+=`<br><b>Jawaban yang tepat memuat:</b> <span style="color:#555">(&#10003; sudah kamu tulis; tanpa tanda = jawaban lain yang bisa kamu pilih)</span>`+idx.map(i=>`<br><span style="display:inline-block;width:1.3em">${ok.has(i+1)?'&#10003;':''}</span>(${i+1}) ${esc(P[i])}`).join('')+(P.length>idx.length?`<br><span style="color:#555">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</span>`:'');
+      return blokUraian(it,a,sr).map(x=>`<p style="margin:0 0 8pt">${x}</p>`).join('');
     }
   } else if(it.kunci){
     const tj=it.jenis==='JODOH'?teksKunciJodoh(it):[];
@@ -1238,11 +1250,11 @@ function docBody(m,s){
   const h=m.hasil[s.id], r=hitung(m,s.id);
   const rows=m.kunci.map(it=>{
     const a=h.j[it.no]; const sr=skorItem(it,a);
-    const tg=(a&&a.tanggapan)?a.tanggapan:teksOtomatis(it,a,sr);
+    const tg=(a&&a.tanggapan)?a.tanggapan:(it.jenis==='URAIAN'?'':teksOtomatis(it,a,sr));
     let jw=a&&a.jawaban?esc(a.jawaban):'<i>(tidak dijawab)</i>';
     if(a&&a.status&&a.status!=='ok'&&!a.dicek) jw+=' <i style="color:#b26a00">(tulisan kurang jelas, menunggu dicek guru)</i>';
     const ket=keteranganUraian(it);
-    return `<tr class="u"><td>${esc(it.no)}</td><td>${esc(JENIS[it.jenis])}</td><td dir="auto">${jw}</td><td><b>${esc(labelSkor(it,sr))}</b></td><td>${ket?`<i>${esc(ket)}</i><br>`:''}${esc(tg)}${jawabanTepatHTML(it,a,sr)}</td></tr>`;
+    return `<tr class="u"><td>${esc(it.no)}</td><td>${esc(JENIS[it.jenis])}</td><td dir="auto">${jw}</td><td><b>${esc(labelSkor(it,sr))}</b></td><td>${it.jenis==='URAIAN'?(()=>{ const bl=[]; if(ket) bl.push(esc(ket)); if(tg) bl.push(esc(tg)); blokUraian(it,a,sr).forEach(x=>bl.push(x)); return bl.map((x,k)=>`<p style="margin:0${k<bl.length-1?' 0 8pt':''}">${x}</p>`).join(''); })():esc(tg)+jawabanTepatHTML(it,a,sr)}</td></tr>`;
   }).join('');
   const sub=JENIS_URUT.filter(j=>r.per[j].n).map(j=>`<tr class="u"><td>${esc(JENIS[j])}</td><td>${r.per[j].skor} dari ${r.per[j].max}</td></tr>`).join('');
   return `<div class="sd">
