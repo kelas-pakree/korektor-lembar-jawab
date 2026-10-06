@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.20';
+const APP_VERSION='4.21';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -844,11 +844,13 @@ function silangUraian(it,a){
   });
   return out;
 }
+function jawabanAda(a){ return ((String(a&&a.jawaban||'').match(/[\p{L}\p{N}]/gu))||[]).length>=2; }
 function setNilai(it,a,val,ragu){
   if(it.jenis==='ISIAN'||it.jenis==='JODOH') a.penilaian=val.penilaian;
   else if((it.poin||[]).length){ a.poin_terpenuhi=val.poin.slice(); a.ada_usaha=val.usaha||val.tambahan>0; a.tambahan=val.tambahan||0; a.salah_fakta=!!val.salah; }
   else { a.skor_uraian=val.skor; a.ada_usaha=true; }
   a.dinilai=true; a.nilai_ragu=!!ragu; a.catatan_nilai='';
+  if(it.jenis==='URAIAN'&&(it.poin||[]).length&&!(a.poin_terpenuhi||[]).length&&!(parseInt(a.tambahan,10)>0)&&a.ada_usaha===false&&jawabanAda(a)){ a.ada_usaha=true; a.nilai_ragu=true; a.catatan_nilai='Claude menilai "tanpa usaha", tetapi siswa menulis jawaban, jadi diberi skor 1. Bila memang tidak ada usaha, hapus centang "Ada usaha menjawab".'; }
   if(it.jenis==='URAIAN'&&a.tambahan>0){ a.nilai_ragu=true; a.catatan_nilai=`Claude menghitung ${a.tambahan} jawaban benar di luar kunci. Mohon dicek.`; }
   if(it.jenis==='URAIAN'){ const sl=silangUraian(it,a); if(sl.length){ a.nilai_ragu=true; a.catatan_nilai=(a.catatan_nilai?a.catatan_nilai+' ':'')+`Kata kunci poin ${sl.join(', ')} ada di jawaban, tetapi poin itu belum diberi. Mohon dicek.`; } }
 }
@@ -869,7 +871,7 @@ function samaNilai(it,a,v){
     if(p!==v.poin.join(',')) return false;
     if((parseInt(a.tambahan,10)||0)!==(v.tambahan||0)) return false;
     if(!!a.salah_fakta!==!!v.salah) return false;
-    return v.poin.length||v.tambahan?true:((a.ada_usaha!==false)===v.usaha);
+    return v.poin.length||v.tambahan?true:((a.ada_usaha!==false)===(v.usaha||jawabanAda(a)));
   }
   return Number(a.skor_uraian)===v.skor;
 }
@@ -949,7 +951,7 @@ function promptNilai(m,i){
   return `Kamu penilai asesmen MI (Madrasah Ibtidaiyah). Mata pelajaran: ${m.nama}. Di bawah ini jawaban ${adaIsian?'isian':''}${adaIsian&&adaUr?' dan ':''}${adaUr?'uraian':''} siswa yang sudah diketik ulang. Identitas siswa sengaja tidak disertakan. Nilai tiap jawaban terhadap kunci. Kerjakan semuanya sendiri tanpa bertanya.${E.paket.length>1?` (Paket ${i+1} dari ${E.paket.length}.)`:''}
 
 ATURAN
-${adaIsian?'- ISIAN dan MENJODOHKAN: "tepat" bila sama atau semakna dengan kunci atau alternatif; "typo" bila isinya benar tetapi ada salah tulis kecil; "salah" bila keliru.\n':''}${adaUr?'- URAIAN: tulis nomor poin kunci yang terpenuhi, dipisah koma (misal 1,3). Poin terpenuhi bila gagasan intinya tertulis, walau kata-katanya berbeda, atau bila jawaban siswa dapat dikaitkan dan disimpulkan langsung dengan poin itu (tulis nomor poin yang berkaitan). Tulis "0" bila tidak ada poin terpenuhi tetapi siswa berusaha menjawab sesuai soal. Tulis "x" bila tidak ada usaha menjawab atau isinya tidak berhubungan sama sekali. Untuk soal tanpa poin kunci, tulis skor 0 sampai 5. Bila siswa menyebut hal yang benar dan sesuai konteks soal tetapi tidak ada di poin kunci, tambahkan +1 untuk tiap hal itu (misal 1,3,+1), tetapi hanya bila hal itu tidak dapat dikaitkan dengan poin kunci mana pun. Jangan menghitung jawaban yang sama dua kali. Untuk soal berjenis "jawaban berupa penjelasan", tambahkan tanda ! di belakang (misal 1,3!) hanya bila jawaban memuat kesalahan fakta yang jelas bertentangan dengan kunci atau materi; ketidaklengkapan bukan kesalahan fakta.\n':''}- Murah hati tetapi proporsional untuk anak MI. Jangan menghukum salah ejaan atau tulisan kurang rapi.
+${adaIsian?'- ISIAN dan MENJODOHKAN: "tepat" bila sama atau semakna dengan kunci atau alternatif; "typo" bila isinya benar tetapi ada salah tulis kecil; "salah" bila keliru.\n':''}${adaUr?'- URAIAN: tulis nomor poin kunci yang terpenuhi, dipisah koma (misal 1,3). Poin terpenuhi bila gagasan intinya tertulis, walau kata-katanya berbeda, atau bila jawaban siswa dapat dikaitkan dan disimpulkan langsung dengan poin itu (tulis nomor poin yang berkaitan). Tulis "0" bila tidak ada poin terpenuhi tetapi jawaban siswa ada isinya, termasuk jawaban yang salah atau tidak sesuai soal (siswa tetap dianggap berusaha). Tulis "x" hanya bila jawaban kosong, hanya tanda "-", atau coretan tanpa isi; jangan tulis "x" untuk jawaban yang berisi tulisan. Untuk soal tanpa poin kunci, tulis skor 0 sampai 5. Bila siswa menyebut hal yang benar dan sesuai konteks soal tetapi tidak ada di poin kunci, tambahkan +1 untuk tiap hal itu (misal 1,3,+1), tetapi hanya bila hal itu tidak dapat dikaitkan dengan poin kunci mana pun. Jangan menghitung jawaban yang sama dua kali. Untuk soal berjenis "jawaban berupa penjelasan", tambahkan tanda ! di belakang (misal 1,3!) hanya bila jawaban memuat kesalahan fakta yang jelas bertentangan dengan kunci atau materi; ketidaklengkapan bukan kesalahan fakta.\n':''}- Murah hati tetapi proporsional untuk anak MI. Jangan menghukum salah ejaan atau tulisan kurang rapi.
 - KONSISTENSI: jawaban yang isinya sama harus mendapat penilaian yang sama. Pakai hanya kunci, poin, dan kata kunci di bawah sebagai tolok ukur; jangan menambah standar sendiri dan jangan menebak maksud yang tidak tertulis. Bila ragu antara dua penilaian, pilih yang lebih tinggi lalu tambahkan tanda ? di belakangnya.
 - Bila dokumen materi pelajaran dilampirkan, pakai sebagai acuan makna jawaban yang dapat diterima.
 
@@ -1996,7 +1998,7 @@ document.addEventListener('input',e=>{ const k=e.target.dataset&&e.target.datase
 
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveNow(); });
 window.addEventListener('pagehide',()=>{ saveNow(); });
-window.__app={ namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
+window.__app={ setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
 /* ============ Pemasangan offline (hanya saat dibuka lewat alamat web) ============ */
 function tampilUpdate(reg){
   if($('#updBar')) return;
