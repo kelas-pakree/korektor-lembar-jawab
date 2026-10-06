@@ -38,6 +38,11 @@ main{max-width:1100px;margin:0 auto;padding:16px}
 .muted{color:var(--muted);font-size:.9rem}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .row.end{justify-content:flex-end}
+.lrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
+.lrow:last-child{border-bottom:none}
+.lrow .grow{flex:1;min-width:0;overflow-wrap:anywhere}
+.lrow .aksi{display:flex;gap:8px;flex:none;align-items:center}
+.lrow .tg{flex:none}
 input,select,textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;max-width:100%}
 textarea{width:100%;min-height:90px}
 input[type=checkbox]{width:18px;height:18px;padding:0}
@@ -546,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.11';
+const APP_VERSION='4.12';
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
@@ -1432,9 +1437,9 @@ function viewBeranda(){
     <div class="row" style="margin-top:10px"><input id="sNama" placeholder="Nama siswa" style="flex:2;min-width:160px"><input id="sKelas" placeholder="Kelas" style="width:90px"><input id="sAbsen" placeholder="No. absen" style="width:100px"><button class="btn" data-act="tambah-siswa">Tambah</button></div>
     ${sis.length?`<div class="scroll" style="margin-top:10px"><table><tr><th>No. absen</th><th>Nama</th><th>Kelas</th><th></th></tr>${sis.map(s=>`<tr><td>${esc(s.absen)}</td><td>${esc(s.nama)}</td><td>${esc(s.kelas)}</td><td><button class="btn danger small" data-act="hapus-siswa" data-id="${s.id}">Hapus</button></td></tr>`).join('')}</table></div>`:'<p class="muted">Belum ada siswa.</p>'}
   </div>
-  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Mata pelajaran (${S.mapel.length})</h2>${S.mapel.length?'<button class="btn danger small" data-act="hapus-semua-mapel">Hapus semua mapel</button>':''}</div>
-    <div class="row"><input id="mNama" list="mapelSaran" placeholder="Pilih atau ketik nama mata pelajaran" style="flex:1;min-width:220px"><datalist id="mapelSaran">${MAPEL_SARAN.filter(x=>!S.mapel.some(m=>m.nama.toLowerCase()===x.toLowerCase())).map(x=>`<option value="${esc(x)}">`).join('')}</datalist><button class="btn" data-act="tambah-mapel">Tambah</button></div>
-    ${S.mapel.length?`<table style="margin-top:8px">${S.mapel.map(m=>`<tr><td><b>${esc(m.nama)}</b><div class="muted">${m.kunci.length} soal, ${Object.keys(m.hasil).length} dari ${S.siswa.length} siswa dikoreksi</div></td><td class="row end"><button class="btn small" data-act="buka-mapel" data-id="${m.id}">Buka</button><button class="btn danger small" data-act="hapus-mapel" data-id="${m.id}">Hapus</button></td></tr>`).join('')}</table>`:''}
+  <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Mata pelajaran (${S.mapel.length})</h2>${S.mapel.length?'<button class="btn danger small" style="margin-left:auto" data-act="hapus-semua-mapel">Hapus semua mapel</button>':''}</div>
+    <div class="row"><input id="mNama" list="mapelSaran" placeholder="Pilih atau ketik nama mata pelajaran" style="flex:1;min-width:150px"><datalist id="mapelSaran">${MAPEL_SARAN.filter(x=>!S.mapel.some(m=>m.nama.toLowerCase()===x.toLowerCase())).map(x=>`<option value="${esc(x)}">`).join('')}</datalist><button class="btn" data-act="tambah-mapel">Tambah</button></div>
+    ${S.mapel.length?`<div style="margin-top:8px">${S.mapel.map(m=>`<div class="lrow"><div class="grow"><b>${esc(m.nama)}</b><div class="muted">${m.kunci.length} soal, ${Object.keys(m.hasil).length} dari ${S.siswa.length} siswa dikoreksi</div></div><div class="aksi"><button class="btn small" data-act="buka-mapel" data-id="${m.id}">Buka</button><button class="btn danger small" data-act="hapus-mapel" data-id="${m.id}">Hapus</button></div></div>`).join('')}</div>`:''}
   </div>`;
 }
 function viewMapel(){
@@ -1455,7 +1460,7 @@ async function muatDokumen(){
   const m=getMapel(); const el=$('#daftarDok'); if(!el||!m) return;
   const f=await fileList(m.id);
   if(!$('#daftarDok')) return;
-  $('#daftarDok').innerHTML=f.length?`<table>${f.map(x=>`<tr><td><span class="badge">${esc(x.jenis)}</span></td><td>${esc(x.name)}<div class="muted">${Math.round((x.size||0)/1024)} KB</div></td><td class="row end"><button class="btn ghost small" data-act="unduh-dok" data-id="${x.id}">Unduh</button><button class="btn danger small" data-act="hapus-dok" data-id="${x.id}">Hapus</button></td></tr>`).join('')}</table>`:'Belum ada dokumen.';
+  $('#daftarDok').innerHTML=f.length?`<div>${f.map(x=>`<div class="lrow"><span class="badge tg">${esc(x.jenis)}</span><div class="grow">${esc(x.name)}<div class="muted">${Math.round((x.size||0)/1024)} KB</div></div><div class="aksi"><button class="btn ghost small" data-act="unduh-dok" data-id="${x.id}">Unduh</button><button class="btn danger small" data-act="hapus-dok" data-id="${x.id}">Hapus</button></div></div>`).join('')}</div>`:'Belum ada dokumen.';
 }
 function ringkasanKunci(m){
   const c={}; JENIS_URUT.forEach(j=>c[j]=0); m.kunci.forEach(k=>c[k.jenis]++);
