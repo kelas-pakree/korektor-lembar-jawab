@@ -551,7 +551,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.14';
+const APP_VERSION='4.20';
+function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
@@ -775,7 +776,7 @@ function blokUraian(it,a,sr){
     const ok=new Set(((a&&a.poin_terpenuhi)||[]).map(Number));
     const tampil=new Set(); P.forEach((_,i)=>{ if(ok.has(i+1)) tampil.add(i); }); for(let i=0;i<P.length&&tampil.size<10;i++) tampil.add(i);
     const idx=[...tampil].sort((x,y)=>x-y).slice(0,Math.max(10,ok.size));
-    out.push('<b>Jawaban yang tepat</b>'+idx.map(i=>`<br><span style="display:inline-block;width:1.3em">${ok.has(i+1)?'&#10003;':''}</span>(${i+1}) ${esc(P[i])}`).join('')+(P.length>idx.length?`<br><span style="color:#555">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</span>`:''));
+    out.push('<b>Jawaban yang tepat</b> (&#10003; = jawabanmu)'+idx.map(i=>`<br><span style="display:inline-block;width:1.3em">${ok.has(i+1)?'&#10003;':''}</span>(${i+1}) ${esc(P[i])}`).join('')+(P.length>idx.length?`<br><span style="color:#555">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</span>`:''));
   }
   const rj=rujukanMateri(it); if(rj) out.push(`<b>Cek di materi</b><br>${esc(rj)}`);
   return out;
@@ -1245,7 +1246,7 @@ function labelSkor(it,r){
   if(it.jenis==='URAIAN') return `${r.skor}/${r.max} (${SEBUTAN_URAIAN[r.skor]})`;
   return `${r.skor}/${r.max}`;
 }
-const DOC_CSS='.sd{font-family:Calibri,Arial,"Noto Naskh Arabic","Traditional Arabic",sans-serif;font-size:11pt;color:#222}.sd h1{font-size:16pt;margin:0 0 4pt}.sd h3{font-size:12pt;margin:10pt 0 4pt}.sd table{border-collapse:collapse;width:100%;margin:6pt 0}.sd td,.sd th{border:1px solid #8a9a92;padding:4pt 6pt;vertical-align:top}.sd th{background:#e3efe9;text-align:left}.sd .nilai{font-size:26pt;font-weight:bold;color:#1f7a5a}.sd .box{border:1px solid #8a9a92;padding:8pt;background:#f4faf7}';
+const DOC_CSS='.sd{font-family:Calibri,Arial,"Noto Naskh Arabic","Traditional Arabic",sans-serif;font-size:11pt;color:#222}.sd h1{font-size:16pt;margin:0 0 4pt}.sd h3{font-size:12pt;margin:10pt 0 4pt}.sd table{border-collapse:collapse;width:100%;margin:6pt 0}.sd td,.sd th{border:1px solid #8a9a92;padding:4pt 6pt;vertical-align:top;overflow-wrap:anywhere}.sd th{background:#e3efe9;text-align:center;vertical-align:middle;font-weight:bold}.sd .nilai{font-size:26pt;font-weight:bold;color:#1f7a5a}.sd .box{border:1px solid #8a9a92;padding:8pt;background:#f4faf7}';
 function docBody(m,s){
   const h=m.hasil[s.id], r=hitung(m,s.id);
   const rows=m.kunci.map(it=>{
@@ -1254,67 +1255,164 @@ function docBody(m,s){
     let jw=a&&a.jawaban?esc(a.jawaban):'<i>(tidak dijawab)</i>';
     if(a&&a.status&&a.status!=='ok'&&!a.dicek) jw+=' <i style="color:#b26a00">(tulisan kurang jelas, menunggu dicek guru)</i>';
     const ket=keteranganUraian(it);
-    return `<tr class="u"><td>${esc(it.no)}</td><td>${esc(JENIS[it.jenis])}</td><td dir="auto">${jw}</td><td><b>${esc(labelSkor(it,sr))}</b></td><td>${it.jenis==='URAIAN'?(()=>{ const bl=[]; if(ket) bl.push(esc(ket)); if(tg) bl.push(esc(tg)); blokUraian(it,a,sr).forEach(x=>bl.push(x)); return bl.map((x,k)=>`<p style="margin:0${k<bl.length-1?' 0 8pt':''}">${x}</p>`).join(''); })():esc(tg)+jawabanTepatHTML(it,a,sr)}</td></tr>`;
+    const skorSel=it.jenis==='URAIAN'?`<p style="margin:0"><b>${sr.skor}/${sr.max}</b></p><p style="margin:0">(${esc(SEBUTAN_URAIAN[sr.skor]||'')})</p>`:`<b>${esc(labelSkor(it,sr))}</b>`;
+    return `<tr class="u"><td style="text-align:center;vertical-align:top">${esc(it.no)}</td><td>${esc(JENIS[it.jenis])}</td><td dir="auto">${jw}</td><td style="text-align:center;vertical-align:top;overflow-wrap:normal">${skorSel}</td><td>${it.jenis==='URAIAN'?(()=>{ const bl=[]; if(ket) bl.push(esc(ket)); if(tg) bl.push(esc(tg)); blokUraian(it,a,sr).forEach(x=>bl.push(x)); return bl.map((x,k)=>`<p style="margin:0${k<bl.length-1?' 0 8pt':''}">${x}</p>`).join(''); })():esc(tg)+jawabanTepatHTML(it,a,sr)}</td></tr>`;
   }).join('');
   const sub=JENIS_URUT.filter(j=>r.per[j].n).map(j=>`<tr class="u"><td>${esc(JENIS[j])}</td><td>${r.per[j].skor} dari ${r.per[j].max}</td></tr>`).join('');
   return `<div class="sd">
 <h1 class="u">Hasil Asesmen: ${esc(m.nama)}</h1>
 <p class="u">${esc(S.agenda?S.agenda.nama:'')}<br>Nama: <b>${esc(s.nama)}</b>${s.kelas?` &nbsp; Kelas: <b>${esc(s.kelas)}</b>`:''}${s.absen?` &nbsp; No. absen: <b>${esc(s.absen)}</b>`:''}</p>
 <p class="u">Nilai akhir<br><span class="nilai">${r.nilai}</span> &nbsp; <span>(skor ${r.tot} dari ${r.max})</span></p>
-<table><tr class="u"><th>Kelompok soal</th><th>Skor</th></tr>${sub}</table>
+<table><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th>Kelompok soal</th><th>Skor</th></tr></thead><tbody>${sub}</tbody></table>
 <h3 class="u">Jawaban, skor, dan tanggapan</h3>
-<table><tr class="u"><th>No</th><th>Jenis</th><th>Jawabanmu</th><th>Skor</th><th>Tanggapan</th></tr>${rows}</table>
+<table style="table-layout:fixed;width:100%"><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th style="width:6%">No</th><th style="width:11%">Jenis</th><th style="width:23%">Jawabanmu</th><th style="width:16%">Skor</th><th style="width:44%">Tanggapan</th></tr></thead><tbody>${rows}</tbody></table>
 <p class="u" style="font-size:10pt;color:#555">Bandingkan jawabanmu dengan jawaban yang tepat, lalu cek kembali di materi belajar.</p>
 ${(h.tanggapan_umum||pesanUmum(m,s))?`<div class="box u"><b>Pesan untukmu:</b><br>${esc(h.tanggapan_umum||pesanUmum(m,s))}</div>`:''}
 </div>`;
 }
 function docSiswa(m,s,pratinjau){
   return `<!doctype html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc(s.nama)} - ${esc(m.nama)}</title>
-<style>${DOC_CSS}${pratinjau?'body{max-width:800px;margin:16px auto;padding:0 16px}@media print{.noprint{display:none}}':'@page Section1{size:21cm 29.7cm;margin:2cm 2cm 2.2cm 2cm;mso-footer-margin:.9cm;mso-footer:f1;}div.Section1{page:Section1;}'}</style></head><body>${pratinjau?'<p class="noprint"><button onclick="window.print()">Cetak / Simpan sebagai PDF</button></p>'+docBody(m,s):`<div class="Section1">${docBody(m,s)}</div><div style="mso-element:footer" id="f1"><p style="margin:0 -2cm 0 -2cm;border-top:solid #8a9a92 .5pt;font-size:2pt;line-height:2pt">&nbsp;</p><table width="100%" cellspacing="0" cellpadding="0" style="width:100%;border:none"><tr><td style="border:none;padding:3pt 0 0 0;font:9pt Calibri,Arial,sans-serif;color:#444" dir="ltr">${esc(labelTampil(m,s))}</td><td style="border:none;padding:3pt 0 0 0;font:9pt Calibri,Arial,sans-serif;color:#444;text-align:right;width:70pt" align="right">[<span style="mso-field-code:' PAGE '">1</span>/<span style="mso-field-code:' NUMPAGES '">1</span>]</td></tr></table></div>`}</body></html>`;
+<style>${DOC_CSS}${pratinjau?'body{max-width:800px;margin:16px auto;padding:0 16px}@media print{.noprint{display:none}}':'@page Section1{size:21.5cm 33cm;margin:1.5cm 1.5cm 1.5cm 1.5cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-footer:f1;}div.Section1{page:Section1;}'}</style></head><body>${pratinjau?'<p class="noprint"><button onclick="window.print()">Cetak / Simpan sebagai PDF</button></p>'+docBody(m,s):`<div class="Section1">${docBody(m,s)}</div><div style="mso-element:footer" id="f1"><p style="margin:0;border-top:solid #8a9a92 .5pt;font-size:2pt;line-height:2pt">&nbsp;</p><table width="100%" cellspacing="0" cellpadding="0" style="width:100%;border:none"><tr><td style="border:none;padding:3pt 0 0 0;font:italic 9pt Calibri,Arial,sans-serif;color:#444" dir="ltr"><i>${esc(labelTampil(m,s))}</i></td><td style="border:none;padding:3pt 0 0 0;font:9pt Calibri,Arial,sans-serif;color:#444;text-align:right;width:70pt" align="right">[<span style="mso-field-code:' PAGE '">1</span>/<span style="mso-field-code:' NUMPAGES '">1</span>]</td></tr></table></div>`}</body></html>`;
 }
-/* Footer PDF digambar di kanvas agar huruf Arab pada nama tetap tampil benar */
+/* Footer PDF jalur foto layar digambar di kanvas agar huruf Arab pada nama tetap tampil benar */
 function footerPdf(label,no,total){
-  const PXMM=8, w=210*PXMM, h=19*PXMM; const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d');
+  const PXMM=8, w=215*PXMM, h=15*PXMM; const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d');
   g.fillStyle='#fff'; g.fillRect(0,0,w,h);
-  g.fillStyle='#8a9a92'; g.fillRect(0,3*PXMM,w,Math.max(1,Math.round(0.25*PXMM)));
-  const f='"Noto Naskh Arabic","Traditional Arabic",Calibri,Arial,sans-serif'; g.font='bold 0px '+f; g.font=Math.round(3.2*PXMM)+'px '+f; g.fillStyle='#444'; g.textBaseline='middle';
-  const pg='['+no+'/'+total+']'; const wp=g.measureText(pg).width; const mx=11*PXMM;
+  const mx=15*PXMM; /* sama dengan margin kiri-kanan 1,5 cm */
+  g.fillStyle='#8a9a92'; g.fillRect(mx,1.2*PXMM,w-2*mx,Math.max(1,Math.round(0.25*PXMM)));
+  const f='"Noto Naskh Arabic","Traditional Arabic",Calibri,Arial,sans-serif'; const fs=Math.round(3.2*PXMM); g.fillStyle='#444'; g.textBaseline='middle';
+  g.font=fs+'px '+f; const pg='['+no+'/'+total+']'; const wp=g.measureText(pg).width;
+  g.font='italic '+fs+'px '+f;
   let tx=String(label); const maxw=w-2*mx-wp-4*PXMM; let pot=false; while(g.measureText(tx).width>maxw&&tx.length>6){ tx=tx.slice(0,-3); pot=true; }
-  if(pot) tx=tx.replace(/[\u2066\u2068\u2069]+$/,'')+'...\u2069';
-  g.direction='ltr'; g.textAlign='left'; g.fillText(tx,mx,7.5*PXMM);
-  g.textAlign='right'; g.fillText(pg,w-mx,7.5*PXMM);
+  if(pot) tx=tx.replace(/[⁦⁨⁩]+$/,'')+'...⁩';
+  g.direction='ltr'; g.textAlign='left'; g.fillText(tx,mx,5*PXMM);
+  g.font=fs+'px '+f; g.textAlign='right'; g.fillText(pg,w-mx,5*PXMM);
   return c.toDataURL('image/png');
 }
-/* PDF dibuat dari tampilan halaman (huruf Arab ikut tampil benar). Teks di PDF berupa gambar. */
+/* Dokumen tanpa huruf Arab dan hanya berisi huruf yang dikenal font standar PDF digambar sebagai huruf vektor */
+const PDF_ARAB=/[֐-ࣿיִ-﷿ﹰ-﻿]/;
+const PDF_AMAN=/^[\t\n\r -~ -ÿ‘’“”–—•…✓‎‏⁦-⁩]*$/;
+function pdfBisaVektor(teks){ return !PDF_ARAB.test(teks)&&PDF_AMAN.test(teks); }
+/* Kumpulkan bentuk (latar, garis) dan potongan teks dari tampilan halaman, dalam px relatif terhadap root */
+function kumpulGambarPdf(root,R0){
+  const wr=c=>{ const m=String(c).match(/rgba?\(([^)]+)\)/); if(!m) return null; const p=m[1].split(',').map(x=>parseFloat(x)); if(p.length>3&&p[3]===0) return null; return [p[0],p[1],p[2]]; };
+  const rects=[], teks=[], cek=[];
+  [root,...root.querySelectorAll('*')].forEach(e=>{
+    const cs=getComputedStyle(e); const r=e.getBoundingClientRect(); if(!r.width||!r.height) return;
+    const bg=wr(cs.backgroundColor); const sisi=['Top','Right','Bottom','Left'].map(k=>{ const w=parseFloat(cs['border'+k+'Width'])||0; const c=wr(cs['border'+k+'Color']); return (w>0&&cs['border'+k+'Style']!=='none'&&c)?{w,c}:null; });
+    if(bg||sisi.some(Boolean)) rects.push({x1:r.left-R0.left,x2:r.right-R0.left,y1:r.top-R0.top,y2:r.bottom-R0.top,bg,sisi});
+  });
+  const tw=document.createTreeWalker(root,NodeFilter.SHOW_TEXT); const rg=document.createRange(); let n;
+  while((n=tw.nextNode())){
+    const d=n.data; if(!d.trim()) continue;
+    const cs=getComputedStyle(n.parentElement); if(cs.visibility==='hidden'||cs.display==='none') continue;
+    const fs=parseFloat(cs.fontSize); const bold=cs.fontWeight==='bold'||+cs.fontWeight>=600; const ital=cs.fontStyle==='italic'; const col=wr(cs.color)||[34,34,34];
+    let cur=null; const flush=()=>{ if(cur){ cur.t=cur.t.replace(/\s+$/,''); if(cur.t) teks.push(cur); cur=null; } };
+    for(let i=0;i<d.length;i++){
+      const ch=d[i]; rg.setStart(n,i); rg.setEnd(n,i+1); const rs=rg.getClientRects(); if(!rs.length) continue; const q=rs[0];
+      const top=q.top-R0.top, left=q.left-R0.left, right=q.right-R0.left;
+      if(ch==='✓'){ flush(); cek.push({x1:left,x2:right,top,h:q.height,fs,col}); continue; }
+      if(q.width<0.01||/[‎‏⁦-⁩]/.test(ch)) continue;
+      const c2=ch===' '?' ':ch;
+      if(cur&&Math.abs(top-cur.top)<2&&left>=cur.right-1&&left-cur.right<fs){ cur.t+=c2; cur.right=right; if(c2!==' ') cur.rEnd=right; }
+      else { flush(); if(c2===' ') continue; cur={t:c2,left,right,rEnd:right,top,h:q.height,fs,bold,ital,col}; }
+    }
+    flush();
+  }
+  return {rects,teks,cek};
+}
+/* Gambar isi vertikal [a,b) ke halaman jsPDF, digeser off px dari atas area isi */
+function gambarRentangPdf(pdf,G,a,b,off,MM,MARGIN){
+  const Y=y=>MARGIN+(y-a+off)*MM, PT=MM/0.352778;
+  G.rects.forEach(p=>{ if(!p.bg) return; const y1=Math.max(p.y1,a), y2=Math.min(p.y2,b); if(y2-y1<1) return; pdf.setFillColor(...p.bg); pdf.rect(p.x1*MM,Y(y1),(p.x2-p.x1)*MM,(y2-y1)*MM,'F'); });
+  pdf.setLineCap('butt');
+  G.rects.forEach(p=>{
+    if(Math.min(p.y2,b)-Math.max(p.y1,a)<1) return;
+    const y1=Math.max(p.y1,a), y2=Math.min(p.y2,b);
+    const [T,R,B,L]=p.sisi;
+    const ln=(s,xa,ya,xb,yb)=>{ pdf.setDrawColor(...s.c); pdf.setLineWidth(s.w*MM); pdf.line(xa*MM,Y(ya),xb*MM,Y(yb)); };
+    if(T&&p.y1>=a-1.5) ln(T,p.x1,p.y1,p.x2,p.y1);
+    if(B&&p.y2<=b+1.5) ln(B,p.x1,p.y2,p.x2,p.y2);
+    if(L) ln(L,p.x1,y1,p.x1,y2);
+    if(R) ln(R,p.x2,y1,p.x2,y2);
+  });
+  G.teks.forEach(t=>{
+    const cy=t.top+t.h/2; if(cy<a||cy>=b) return;
+    pdf.setFont('helvetica',t.bold&&t.ital?'bolditalic':t.bold?'bold':t.ital?'italic':'normal');
+    pdf.setFontSize(t.fs*PT); pdf.setTextColor(...t.col);
+    const wt=(t.rEnd-t.left)*MM, w0=pdf.getTextWidth(t.t), n=t.t.length;
+    pdf.text(t.t,t.left*MM,Y(t.top+t.h*0.81),{charSpace:n>1?(wt-w0)/(n-1):0});
+  });
+  pdf.setLineCap('round'); pdf.setLineJoin('round');
+  G.cek.forEach(c=>{
+    const cy=c.top+c.h/2; if(cy<a||cy>=b) return;
+    const w=c.x2-c.x1, y0=c.top+c.h*0.28, hh=c.h*0.46;
+    pdf.setDrawColor(...c.col); pdf.setLineWidth(c.fs*0.09*MM);
+    pdf.line((c.x1+w*0.08)*MM,Y(y0+hh*0.55),(c.x1+w*0.38)*MM,Y(y0+hh));
+    pdf.line((c.x1+w*0.38)*MM,Y(y0+hh),(c.x1+w*0.92)*MM,Y(y0));
+  });
+  pdf.setLineCap('butt');
+}
+function footerVektorPdf(pdf,label,no,total){
+  const mx=15, L=String(label).replace(/[⁦⁨⁩‎‏]/g,'').replace(/ /g,' ');
+  pdf.setDrawColor(138,154,146); pdf.setLineWidth(0.25); pdf.line(mx,316.2,215-mx,316.2);
+  pdf.setTextColor(68,68,68); pdf.setFontSize(9);
+  pdf.setFont('helvetica','normal'); const pg='['+no+'/'+total+']'; const wp=pdf.getTextWidth(pg);
+  pdf.setFont('helvetica','italic'); let tx=L; const maxw=215-2*mx-wp-4;
+  while(pdf.getTextWidth(tx)>maxw&&tx.length>6) tx=tx.slice(0,-1);
+  if(tx!==L) tx=tx.replace(/\s+$/,'')+'...';
+  pdf.text(tx,mx,320.3);
+  pdf.setFont('helvetica','normal'); pdf.text(pg,215-mx,320.3,{align:'right'});
+}
+/* PDF: dokumen tanpa huruf Arab memakai huruf vektor; dokumen berhuruf Arab dibuat dari tampilan halaman (teks berupa gambar) */
 async function pdfSiswa(m,s){
   if(!window.jspdf||!window.html2canvas) throw new Error('Pustaka PDF tidak termuat');
-  const W=794, PH=930, SK=1.6;
+  const hq=kualitasPdf()==='tinggi'; let SK=hq?3:1.6; const JQ=hq?0.92:0.82;
+  const W=813, MMPX=215/W, PAD=Math.round(15/MMPX), PH=Math.floor(300/MMPX)-4; /* margin 1,5 cm; isi setinggi 30 cm */
   const host=document.createElement('div');
   host.style.cssText='position:absolute;left:-10000px;top:0;width:'+W+'px;background:#fff;';
-  host.innerHTML=`<style>${DOC_CSS}</style><div id="pdfroot" style="width:${W}px;padding:0 44px;box-sizing:border-box;background:#fff">${docBody(m,s)}</div>`;
+  host.innerHTML=`<style>${DOC_CSS}</style><div id="pdfroot" style="width:${W}px;padding:0 ${PAD}px;box-sizing:border-box;background:#fff">${docBody(m,s)}</div>`;
   document.body.appendChild(host);
   try{
     const root=host.querySelector('#pdfroot');
+    const vektor=pdfBisaVektor(root.textContent+' '+labelDok(m,s));
+    /* jalur vektor memakai Arial agar lebar huruf sama dengan Helvetica di PDF */
+    if(vektor) host.insertAdjacentHTML('afterbegin','<style>.sd,.sd *{font-family:Arial,Helvetica,"Liberation Sans",Arimo,sans-serif!important}</style>');
     if(document.fonts&&document.fonts.ready) await document.fonts.ready;
     const R0=root.getBoundingClientRect(); const H=Math.ceil(R0.height);
-    const units=[...root.querySelectorAll('.u')].map(e=>{const r=e.getBoundingClientRect();return {t:r.top-R0.top,b:r.bottom-R0.top};});
-    const pages=[]; let y0=0;
+    const rect=e=>{const r=e.getBoundingClientRect();return {t:r.top-R0.top,b:r.bottom-R0.top};};
+    const tabel=new Map(); root.querySelectorAll('table').forEach(tb=>{ const th=tb.querySelector('thead tr'); if(th){ const r=rect(th); tabel.set(tb,{t:r.t,b:r.b,h:r.b-r.t}); } });
+    const units=[...root.querySelectorAll('.u')].map(e=>{const r=rect(e); const tb=e.closest('table'); return {t:r.t,b:r.b,hdr:(tb&&!e.closest('thead')&&tabel.get(tb))||null};});
+    const pages=[]; let y0=0, hdr=null; const cap=()=>PH-(hdr?hdr.h:0);
     for(const u of units){
-      if(u.b-y0>PH&&u.t>y0){ pages.push([y0,u.t]); y0=u.t; }
-      while(u.b-y0>PH){ pages.push([y0,y0+PH]); y0+=PH; }
+      if(u.b-y0>cap()&&u.t>y0){ pages.push({a:y0,b:u.t,hdr}); y0=u.t; hdr=u.hdr; }
+      while(u.b-y0>cap()){ const c=cap(); pages.push({a:y0,b:y0+c,hdr}); y0+=c; hdr=u.hdr; }
     }
-    pages.push([y0,H]);
+    pages.push({a:y0,b:H,hdr});
+    const {jsPDF}=window.jspdf; const pdf=new jsPDF({unit:'mm',format:[215,330],compress:true});
+    const MM=MMPX, MARGIN=15;
+    if(vektor){
+      const G=kumpulGambarPdf(root,R0);
+      pages.forEach((pg,i)=>{
+        if(i) pdf.addPage();
+        const hh=pg.hdr?pg.hdr.h:0;
+        if(pg.hdr) gambarRentangPdf(pdf,G,pg.hdr.t,pg.hdr.b,0,MM,MARGIN);
+        gambarRentangPdf(pdf,G,pg.a,pg.b,hh,MM,MARGIN);
+        footerVektorPdf(pdf,labelDok(m,s),i+1,pages.length);
+      });
+      return pdf.output('blob');
+    }
+    SK=Math.min(SK,Math.sqrt(1.2e8/(W*H))); /* batasi luas kanvas agar aman di perangkat dengan memori kecil */
     const full=await html2canvas(root,{scale:SK,backgroundColor:'#ffffff',logging:false,width:W,windowWidth:W});
-    const {jsPDF}=window.jspdf; const pdf=new jsPDF({unit:'mm',format:'a4',compress:true});
-    const MM=210/W, MARGIN=11;
-    pages.forEach(([a,b],i)=>{
-      const hpx=Math.max(1,Math.round((b-a)*SK));
+    pages.forEach((pg,i)=>{
+      const hh=pg.hdr?pg.hdr.h:0; const hpx=Math.max(1,Math.round((pg.b-pg.a+hh)*SK));
       const c=document.createElement('canvas'); c.width=full.width; c.height=hpx;
       const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,c.width,c.height);
-      g.drawImage(full,0,Math.round(a*SK),full.width,hpx,0,0,full.width,hpx);
+      if(pg.hdr) g.drawImage(full,0,Math.round(pg.hdr.t*SK),full.width,Math.round(hh*SK),0,0,full.width,Math.round(hh*SK));
+      g.drawImage(full,0,Math.round(pg.a*SK),full.width,Math.round((pg.b-pg.a)*SK),0,Math.round(hh*SK),full.width,Math.round((pg.b-pg.a)*SK));
       if(i) pdf.addPage();
-      pdf.addImage(c.toDataURL('image/jpeg',0.82),'JPEG',0,MARGIN,210,(b-a)*MM);
-      pdf.addImage(footerPdf(labelTampil(m,s),i+1,pages.length),'PNG',0,278,210,19);
+      pdf.addImage(c.toDataURL('image/jpeg',JQ),'JPEG',0,MARGIN,215,(pg.b-pg.a+hh)*MM);
+      pdf.addImage(footerPdf(labelTampil(m,s),i+1,pages.length),'PNG',0,315,215,15);
     });
     return pdf.output('blob');
   } finally { host.remove(); }
@@ -1646,6 +1744,8 @@ function viewRekap(){
 function viewPengaturan(){
   return `<div class="card"><h2>Cadangan data</h2><p class="muted">Data tersimpan di browser perangkat ini. Membersihkan data browser akan menghapusnya, jadi simpan cadangan berkala.</p>
   <div class="row"><button class="btn" data-act="cadangan">Unduh cadangan (JSON)</button><button class="btn ghost" data-act="pulihkan">Pulihkan dari cadangan</button><input type="file" id="fPulih" accept=".json" hidden data-on="file-pulih"></div></div>
+  <div class="card"><h2>Kualitas PDF</h2><p class="muted">Dokumen tanpa huruf Arab selalu dibuat dengan huruf vektor yang tajam dan berkas kecil. Pilihan ini hanya untuk dokumen yang memuat huruf Arab (tulisan berupa gambar): Tinggi lebih tajam tetapi berkas lebih besar, Standar berkas lebih kecil dengan tulisan agak lembut.</p>
+  <div class="row"><select data-on="kualitas-pdf"><option value="tinggi" ${kualitasPdf()==='tinggi'?'selected':''}>Tinggi (disarankan)</option><option value="standar" ${kualitasPdf()==='standar'?'selected':''}>Standar (berkas kecil)</option></select></div></div>
   <div class="card"><h2>Versi aplikasi</h2><p class="muted">Versi ${APP_VERSION}. Data setiap perangkat dan setiap alamat tersimpan terpisah; pindahkan lewat cadangan.</p></div>
   <div class="card"><h2>Mulai agenda baru</h2><p class="muted">Menghapus semua siswa, mata pelajaran, dokumen, dan hasil, untuk agenda asesmen berikutnya. Anda akan diminta mengunduh arsip dulu dan mengonfirmasi.</p><button class="btn danger" data-act="reset">Mulai agenda baru...</button></div>`;
 }
@@ -1832,6 +1932,7 @@ const ACT={
   }
 };
 const ON={
+  'kualitas-pdf'(el){ try{ localStorage.setItem('korektor_kualitas_pdf',el.value==='standar'?'standar':'tinggi'); }catch(e){} toast('Kualitas PDF: '+(el.value==='standar'?'Standar':'Tinggi')); },
   'agenda-nama'(el){ S.agenda.nama=el.value.trim()||S.agenda.nama; save(); },
   async 'file-impor'(el){
     const f=el.files[0]; if(!f) return;
