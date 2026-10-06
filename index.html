@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.12';
+const APP_VERSION='4.13';
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
@@ -1434,12 +1434,12 @@ function viewBeranda(){
     <p class="muted">Siswa dikenali dari <b>kelas + nomor absen</b> yang tertulis di lembar jawab. Impor dari Excel (kolom: Nama, Kelas, No. Absen) atau ketik manual.</p>${peringatanAbsen()}
     <div class="row"><button class="btn" data-act="impor-excel">Impor dari Excel</button><button class="btn ghost" data-act="contoh-excel">Unduh contoh Excel</button>
     <input type="file" id="fImpor" accept=".xlsx,.xls,.csv" hidden data-on="file-impor"></div>
-    <div class="row" style="margin-top:10px"><input id="sNama" placeholder="Nama siswa" style="flex:2;min-width:160px"><input id="sKelas" placeholder="Kelas" style="width:90px"><input id="sAbsen" placeholder="No. absen" style="width:100px"><button class="btn" data-act="tambah-siswa">Tambah</button></div>
-    ${sis.length?`<div class="scroll" style="margin-top:10px"><table><tr><th>No. absen</th><th>Nama</th><th>Kelas</th><th></th></tr>${sis.map(s=>`<tr><td>${esc(s.absen)}</td><td>${esc(s.nama)}</td><td>${esc(s.kelas)}</td><td><button class="btn danger small" data-act="hapus-siswa" data-id="${s.id}">Hapus</button></td></tr>`).join('')}</table></div>`:'<p class="muted">Belum ada siswa.</p>'}
+    <div class="row" style="margin-top:16px"><input id="sNama" placeholder="Nama siswa" style="flex:2;min-width:160px"><input id="sKelas" placeholder="Kelas" style="width:90px"><input id="sAbsen" placeholder="No. absen" style="width:100px"><button class="btn" data-act="tambah-siswa">Tambah</button></div>
+    ${sis.length?`<div class="scroll" style="margin-top:16px"><table><tr><th>No. absen</th><th>Nama</th><th>Kelas</th><th></th></tr>${sis.map(s=>`<tr><td>${esc(s.absen)}</td><td>${esc(s.nama)}</td><td>${esc(s.kelas)}</td><td><button class="btn danger small" data-act="hapus-siswa" data-id="${s.id}">Hapus</button></td></tr>`).join('')}</table></div>`:'<p class="muted">Belum ada siswa.</p>'}
   </div>
   <div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Mata pelajaran (${S.mapel.length})</h2>${S.mapel.length?'<button class="btn danger small" style="margin-left:auto" data-act="hapus-semua-mapel">Hapus semua mapel</button>':''}</div>
-    <div class="row"><input id="mNama" list="mapelSaran" placeholder="Pilih atau ketik nama mata pelajaran" style="flex:1;min-width:150px"><datalist id="mapelSaran">${MAPEL_SARAN.filter(x=>!S.mapel.some(m=>m.nama.toLowerCase()===x.toLowerCase())).map(x=>`<option value="${esc(x)}">`).join('')}</datalist><button class="btn" data-act="tambah-mapel">Tambah</button></div>
-    ${S.mapel.length?`<div style="margin-top:8px">${S.mapel.map(m=>`<div class="lrow"><div class="grow"><b>${esc(m.nama)}</b><div class="muted">${m.kunci.length} soal, ${Object.keys(m.hasil).length} dari ${S.siswa.length} siswa dikoreksi</div></div><div class="aksi"><button class="btn small" data-act="buka-mapel" data-id="${m.id}">Buka</button><button class="btn danger small" data-act="hapus-mapel" data-id="${m.id}">Hapus</button></div></div>`).join('')}</div>`:''}
+    <div class="row" style="margin-top:16px"><input id="mNama" list="mapelSaran" placeholder="Pilih atau ketik nama mata pelajaran" style="flex:1;min-width:150px"><datalist id="mapelSaran">${MAPEL_SARAN.filter(x=>!S.mapel.some(m=>m.nama.toLowerCase()===x.toLowerCase())).map(x=>`<option value="${esc(x)}">`).join('')}</datalist><button class="btn" data-act="tambah-mapel">Tambah</button></div>
+    ${S.mapel.length?`<div style="margin-top:12px">${S.mapel.map(m=>`<div class="lrow"><div class="grow"><b>${esc(m.nama)}</b><div class="muted">${m.kunci.length} soal, ${Object.keys(m.hasil).length} dari ${S.siswa.length} siswa dikoreksi</div></div><div class="aksi"><button class="btn small" data-act="buka-mapel" data-id="${m.id}">Buka</button><button class="btn danger small" data-act="hapus-mapel" data-id="${m.id}">Hapus</button></div></div>`).join('')}</div>`:''}
   </div>`;
 }
 function viewMapel(){
