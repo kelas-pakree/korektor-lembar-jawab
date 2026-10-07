@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.26';
+const APP_VERSION='4.27';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -1228,6 +1228,72 @@ function normalJawaban(m,x){
 }
 
 /* ============ Prompt untuk Claude ============ */
+/* ---- Perbarui kunci: bandingkan kunci lama dan baru, tandai penilaian tahap B yang perlu diulang ---- */
+function tandaKunci(it){
+  if(it.jenis==='URAIAN') return JSON.stringify(['U',(it.poin||[]).map(x=>norm(x))]);
+  if(it.jenis==='ISIAN') return JSON.stringify(['I',norm(it.kunci),String(it.alt||'').split(';').map(x=>norm(x)).filter(Boolean).sort()]);
+  if(it.jenis==='JODOH') return JSON.stringify(['J',huruf(it.kunci).join(','),String(it.teks||'').split(';').map(x=>norm(x)).filter(Boolean).sort()]);
+  return JSON.stringify(['P',it.jenis,huruf(it.kunci).sort().join(',')]);
+}
+function bandingKunci(lama,baru){
+  const L=new Map((lama||[]).map(k=>[String(k.no),k])), B=new Map((baru||[]).map(k=>[String(k.no),k]));
+  const r={ulang:[],otomatis:[],jenis:[],baru:[],hilang:[],sama:0,bobot:[]};
+  B.forEach((k,no)=>{ const o=L.get(no);
+    if(!o){ r.baru.push(no); return; }
+    if(o.jenis!==k.jenis){ r.jenis.push(no); if(['ISIAN','JODOH','URAIAN'].includes(k.jenis)) r.ulang.push(no); return; }
+    if(tandaKunci(o)===tandaKunci(k)){ r.sama++; if(k.jenis==='URAIAN'&&JSON.stringify(o.bobot||null)!==JSON.stringify(k.bobot||null)) r.bobot.push(no); return; }
+    if(k.jenis==='PG'||k.jenis==='PGK') r.otomatis.push(no); else r.ulang.push(no);
+  });
+  L.forEach((k,no)=>{ if(!B.has(no)) r.hilang.push(no); });
+  return r;
+}
+function kosongkanNilaiB(a){ a.dinilai=false; a.poin_terpenuhi=[]; a.penilaian=''; a.tambahan=0; a.salah_fakta=false; a.ada_usaha=true; delete a.skor_uraian; a.nilai_ragu=false; a.catatan_nilai=''; }
+/* nos: nomor soal yang penilaiannya diulang (null = semua soal). dry: hanya menghitung. */
+function tandaiNilaiUlang(m,nos,dry){
+  const set=nos?new Set(nos.map(String)):null; let n=0, manual=0, terkunci=0;
+  S.siswa.forEach(s=>{
+    const h=m.hasil[s.id]; if(!h) return;
+    let kena=0;
+    Object.keys(h.j||{}).forEach(no=>{
+      if(set&&!set.has(String(no))) return;
+      const it=m.kunci.find(k=>String(k.no)===String(no)); if(!it||!['ISIAN','JODOH','URAIAN'].includes(it.jenis)) return;
+      const a=h.j[no]; if(!a||!a.dinilai) return;
+      kena++; if(h.final) return;
+      if(!kosongNilai(a.skor_manual)) manual++;
+      n++; if(!dry) kosongkanNilaiB(a);
+    });
+    if(h.final&&kena) terkunci++;
+  });
+  if(!dry) m.entriNilai=null;
+  return {n,manual,terkunci};
+}
+function kunciKeJson(m){
+  return JSON.stringify({kunci:m.kunci.map(it=>{
+    const o={no:it.no,jenis:it.jenis};
+    if(it.jenis==='URAIAN'){ o.bentuk=bentukUraian(it)==='narasi'?'non-pointer':'pointer'; o.diminta=jumlahDiminta(it)||null; o.poin=it.poin||[]; if(bobotAktif(it)) o.bobot=bobotEfektif(it); const kk=(it.kata||[]).slice(0,(it.poin||[]).length).map(s=>String(s||'').split(',').map(x=>x.trim()).filter(Boolean)); if(kk.some(x=>x.length)) o.kata_kunci=kk; }
+    else if(it.jenis==='ISIAN'){ o.kunci=it.kunci; const alt=String(it.alt||'').split(';').map(x=>x.trim()).filter(Boolean); if(alt.length) o.alt=alt; }
+    else if(it.jenis==='JODOH'){ o.kunci=it.kunci; o.jawaban=it.teks||''; }
+    else o.kunci=it.kunci;
+    if(it.rujukan) o.rujukan=it.rujukan;
+    if(it.cek){ o.status_kunci=it.cek.status; if(it.cek.asli) o.kunci_asli=it.cek.asli; if(it.cek.dasar) o.dasar=it.cek.dasar; }
+    return o; })},null,1);
+}
+function promptPerbaruiKunci(m){
+  const dasar=promptKunci(m);
+  const sisip=`KUNCI SAAT INI (titik awal; ini kunci yang sudah dipakai menilai siswa)
+${FENCE}json
+${kunciKeJson(m)}
+${FENCE}
+
+ATURAN PEMBARUAN (MODE PERBARUI, bukan membuat dari nol)
+- Pertahankan nomor, jenis, dan jumlah soal persis seperti KUNCI SAAT INI, kecuali dokumen jelas menunjukkan kekeliruan (tulis alasannya di "catatan_umum").
+- Periksa ulang setiap kunci dengan PROSEDUR PEMERIKSAAN di bawah. Ubah hanya yang memang perlu diperbaiki.
+- Soal yang tidak perlu diubah: salin PERSIS apa adanya (teks dan urutan poin sama persis) agar penilaian siswa yang sudah ada tidak perlu diulang. Mengubah kata atau urutan poin berarti penilaian soal itu diulang.
+- Soal URAIAN non-pointer yang belum punya "bobot": pecah menjadi komponen dan beri bobot sesuai aturan di bawah.
+
+`;
+  return dasar.replace('TUGAS\n',sisip+'TUGAS\n');
+}
 function promptKunci(m){
   return `Kamu asisten guru MI (Madrasah Ibtidaiyah). Saya melampirkan dokumen untuk mata pelajaran ${m.nama}: DOKUMEN MATERI pelajaran, DOKUMEN SOAL, dan DOKUMEN KUNCI JAWABAN (bisa berupa foto, PDF, atau dokumen).
 
@@ -1627,6 +1693,19 @@ function bannerKunci(m){
   return `<div class="note"><b>${bad.length} soal tidak sesuai</b> dari ${cek} soal yang diperiksa. Kunci akhir sudah dipakai otomatis.<ul style="margin:6px 0">${baris}</ul>${m.catatanKunci?'<div>'+esc(m.catatanKunci)+'</div>':''}
   <details><summary>Lihat rincian</summary><div class="scroll"><table><tr><th>No</th><th>Jenis</th><th>Status</th><th>Kunci asli</th><th>Kunci dipakai</th><th>Dasar</th></tr>${bad.map(k=>`<tr><td>${esc(k.no)}</td><td>${esc(JENIS[k.jenis])}</td><td>${esc(STATUS_KUNCI[k.cek.status])}</td><td>${esc(k.cek.asli||'-')}</td><td>${esc(k.jenis==='URAIAN'?(k.poin||[]).join('; '):k.kunci)}</td><td>${esc(k.cek.dasar||'-')}</td></tr>`).join('')}</table></div></details></div>`;
 }
+function kotakPerubahanKunci(m){
+  const r=m.ringkasKunci; if(!r) return '';
+  const ls=a=>a.length?a.join(', '):'-';
+  return `<div class="note" style="margin:8px 0"><b>Perubahan kunci terakhir</b> (${esc(new Date(r.waktu).toLocaleString('id-ID'))}): ${r.sama} soal sama, ${r.ulang.length+r.otomatis.length} soal berubah, ${r.baru.length} baru, ${r.hilang.length} hilang.<br>
+  ${r.ulang.length?`Penilaian tahap B perlu diulang untuk soal: ${esc(ls(r.ulang))} (${r.nilaiUlang} jawaban siswa sudah ditandai <i>menunggu tahap B</i>; siapkan paket di langkah 3).<br>`:''}${r.otomatis.length?`Soal PG/PGK berubah (dihitung otomatis, tidak perlu diulang): ${esc(ls(r.otomatis))}.<br>`:''}${r.bobot.length?`Bobot berubah (skor dihitung ulang otomatis): ${esc(ls(r.bobot))}.<br>`:''}${r.jenis.length?`Jenis soal berubah: ${esc(ls(r.jenis))}. Sebaiknya ulangi tahap A untuk soal ini bila format jawabannya ikut berubah.<br>`:''}${r.hilang.length?`Soal yang tidak ada lagi di kunci baru: ${esc(ls(r.hilang))} (jawaban siswa tetap tersimpan).<br>`:''}${r.manual?`${r.manual} jawaban memakai skor manual guru dan tidak diubah.<br>`:''}${r.terkunci?`${r.terkunci} siswa terkunci tidak diubah; buka kunci hasilnya bila perlu.`:''}</div>`;
+}
+function kotakReset(m){
+  const n=Object.keys(m.hasil||{}).length; if(!n) return '';
+  return `<details style="margin-top:8px"><summary>Mulai ulang hasil siswa (reset)</summary>
+    <p class="muted">Gunakan bila kunci diganti total atau penilaian ingin diulang dari awal. Hasil yang sudah dikunci final tidak ikut terhapus.</p>
+    <div class="row"><button class="btn ghost small" data-act="reset-b">Hapus penilaian tahap B saja</button><button class="btn danger small" data-act="reset-semua">Hapus semua hasil siswa (tahap A dan B)</button></div>
+    <p class="muted">Tahap B saja: jawaban hasil transkripsi tahap A tetap, penilaian isian, menjodohkan, dan uraian dikosongkan lalu dinilai ulang. Skor manual guru tidak dihapus.</p></details>`;
+}
 function stepKunci(m){
   const rows=m.kunci.map((it,i)=>{
     let isi='';
@@ -1638,12 +1717,12 @@ function stepKunci(m){
     isi+=`<input dir="auto" data-on="k-field" data-i="${i}" data-f="rujukan" value="${esc(it.rujukan||'')}" placeholder="Rujukan materi (bab/halaman), opsional" style="width:100%;margin-top:4px">`;
     return `<tr><td style="width:80px"><input dir="auto" data-on="k-field" data-i="${i}" data-f="no" value="${esc(it.no)}" style="width:70px">${lencana}</td><td style="width:190px"><select data-on="k-field" data-i="${i}" data-f="jenis">${JENIS_URUT.map(j=>`<option value="${j}" ${it.jenis===j?'selected':''}>${JENIS[j]}</option>`).join('')}</select></td><td>${isi}</td><td style="width:70px"><button class="btn danger small" data-act="hapus-soal" data-i="${i}">Hapus</button></td></tr>`;
   }).join('');
-  return `<div class="card"><h2>Kunci jawaban ${esc(m.nama)}</h2>${ringkasanKunci(m)}${bannerKunci(m)}
+  return `<div class="card"><h2>Kunci jawaban ${esc(m.nama)}</h2>${ringkasanKunci(m)}${bannerKunci(m)}${kotakPerubahanKunci(m)}
   <details ${m.kunci.length?'':'open'}><summary>Cara cepat: minta Claude menyusun dan memeriksa kunci dari materi, soal, dan kunci</summary>
-    <ol class="g"><li><button class="btn small" data-act="salin-prompt-kunci">Salin prompt</button></li><li>Buka chat baru di claude.ai, tempel prompt, lampirkan <b>dokumen materi, soal, dan kunci</b> (foto/PDF), lalu kirim. Claude memeriksa kunci ke materi (materi yang menang), lalu ke sumber luar bagi soal di luar materi.</li><li>Salin hasil JSON dari Claude, tempel di bawah, lalu tekan <b>Terapkan</b>. Nomor soal yang tidak sesuai ditampilkan di kotak peringatan.</li></ol>
+    <ol class="g"><li><button class="btn small" data-act="salin-prompt-kunci">Salin prompt</button>${m.kunci.length?` <button class="btn ghost small" data-act="salin-prompt-perbarui">Salin prompt perbarui (mulai dari kunci saat ini)</button>`:''}</li><li>Buka chat baru di claude.ai, tempel prompt, lampirkan <b>dokumen materi, soal, dan kunci</b> (foto/PDF), lalu kirim. Claude memeriksa kunci ke materi (materi yang menang), lalu ke sumber luar bagi soal di luar materi.</li><li>Salin hasil JSON dari Claude, tempel di bawah, lalu tekan <b>Terapkan</b>. Nomor soal yang tidak sesuai ditampilkan di kotak peringatan.</li></ol>
     <textarea data-keep="kunciText" placeholder="Tempel hasil dari Claude di sini">${esc(ui.kunciText)}</textarea>
-    <div class="row" style="margin-top:6px"><button class="btn" data-act="terapkan-kunci">Terapkan</button><span class="muted">Mengganti seluruh daftar kunci di bawah.</span></div>
-  </details>
+    <div class="row" style="margin-top:6px"><button class="btn" data-act="terapkan-kunci">Terapkan</button><span class="muted">Mengganti seluruh daftar kunci di bawah. Soal yang berubah dibandingkan dengan kunci lama, dan penilaian tahap B-nya ditandai untuk diulang.</span></div>
+  </details>${kotakReset(m)}
   <h3>Atau isi manual</h3>
   <div class="row"><select data-on="bulk-jenis">${JENIS_URUT.map(j=>`<option value="${j}" ${ui.bulkJenis===j?'selected':''}>${JENIS[j]}</option>`).join('')}</select><input type="number" min="1" max="100" value="${ui.bulkJumlah}" data-on="bulk-jumlah" style="width:80px"><span>soal</span><button class="btn small" data-act="tambah-soal">Tambah</button></div>
   ${m.kunci.length?`<div class="scroll" style="margin-top:10px"><table><tr><th>No</th><th>Jenis</th><th>Kunci / poin kunci / rujukan materi</th><th></th></tr>${rows}</table></div>`:''}
@@ -1827,6 +1906,12 @@ function viewPanduan(){
       <li><b>Tahap A:</b> kirim foto yang sama di chat baru. Bila siswa sudah tersimpan, aplikasi menampilkan jawaban yang berbeda dan persentase yang sama. Bawaan: tetap pakai hasil lama.</li>
       <li><b>Tahap B:</b> centang <i>Sertakan jawaban yang sudah dinilai</i>, isi rentang absen, lalu siapkan paket seperti biasa.</li>
       <li>Siswa yang sudah final: tombol <b>Kunci hasil</b> di langkah 4. Hasil terkunci tidak berubah oleh tempel ulang.</li></ul></div>
+    <div class="card"><h3 style="margin-top:0">Memperbarui kunci (kunci diganti atau disempurnakan)</h3><ul style="margin:0;padding-left:1.1em">
+      <li>Di langkah 2 tekan <b>Salin prompt perbarui</b>. Prompt ini menyertakan kunci saat ini, jadi Claude menyempurnakan, bukan membuat dari nol. Soal yang tidak perlu berubah disalin persis. Setelah itu tempel hasilnya dan tekan <b>Terapkan</b>.</li>
+      <li>Aplikasi membandingkan kunci lama dan baru per soal dan menampilkannya di kotak <i>Perubahan kunci terakhir</i>. <b>Tahap A tidak berubah.</b> PG dan PGK dihitung ulang otomatis. Untuk isian, menjodohkan, dan uraian yang kuncinya berubah, penilaian tahap B ditandai <i>menunggu tahap B</i>; siapkan paket di langkah 3 dan hasil barunya langsung menggantikan yang lama.</li>
+      <li>Hanya bobot komponen yang berubah: skor dihitung ulang otomatis, tanpa tahap B.</li>
+      <li>Nomor atau jenis soal berubah, atau foto salah terbaca: ulangi tahap A untuk soal itu, lalu tahap B.</li>
+      <li>Mulai bersih: di langkah 2, bagian <i>Mulai ulang hasil siswa</i>, pilih <b>Hapus penilaian tahap B saja</b> atau <b>Hapus semua hasil siswa</b>. Siswa terkunci final tidak ikut berubah.</li></ul></div>
     <div class="card" style="background:var(--warn-bg);border-color:var(--warn)"><h3 style="margin-top:0;color:var(--warn)">Jika layar tidak seperti yang diharapkan</h3><ul style="margin:0;padding-left:1.1em">
       <li><span class="pg-pill">menunggu tahap B</span> artinya isian atau uraian siswa itu belum dinilai. Nilainya masih sementara.</li>
       <li><span class="pg-pill">perlu dicek</span> artinya tulisan atau penilaian diragukan. Buka <b>Tinjau</b>, periksa, lalu centang <i>Sudah saya cek</i>.</li>
@@ -1897,12 +1982,23 @@ const ACT={
   },
   'bagi-rata-bobot'(el){ const m=getMapel(); const it=m.kunci[+el.dataset.i]; it.bobot=bagiRataBobot((it.poin||[]).length); delete it.bobotCatatan; save(); render(); },
   'hapus-soal'(el){ const m=getMapel(); m.kunci.splice(+el.dataset.i,1); save(); render(); },
+  async 'salin-prompt-perbarui'(){ toast(await copyText(promptPerbaruiKunci(getMapel()))?'Prompt perbarui disalin. Tempel di chat claude.ai dan lampirkan dokumen.':'Gagal menyalin.'); },
+  'reset-b'(){ const m=getMapel(); const d=tandaiNilaiUlang(m,null,true); if(!confirm(`Hapus penilaian tahap B (${d.n} jawaban) untuk ${m.nama}? Hasil transkripsi tahap A tetap. Skor manual guru dan siswa terkunci tidak diubah.`)) return; tandaiNilaiUlang(m,null,false); save(); render(); toast(`${d.n} penilaian tahap B dikosongkan. Siapkan penilaian di langkah 3.`); },
+  'reset-semua'(){ const m=getMapel(); const ids=Object.keys(m.hasil).filter(id=>!m.hasil[id].final); const fin=Object.keys(m.hasil).length-ids.length; if(!confirm(`Hapus SEMUA hasil ${ids.length} siswa untuk ${m.nama} (tahap A dan B)?${fin?` ${fin} siswa terkunci tetap ada.`:''} Tindakan ini tidak bisa dibatalkan. Unduh cadangan dulu bila perlu.`)) return; ids.forEach(id=>{ delete m.hasil[id]; }); m.entriNilai=null; ui.parsed=null; ui.parsedB=null; save(); render(); toast(`Hasil ${ids.length} siswa dihapus.`); },
   async 'salin-prompt-kunci'(){ toast(await copyText(promptKunci(getMapel()))?'Prompt disalin. Tempel di chat claude.ai.':'Gagal menyalin. Salin manual dari kotak prompt.'); },
   async 'salin-prompt-koreksi'(){ toast(await copyText(promptKoreksi(getMapel()))?'Prompt disalin. Tempel di chat claude.ai.':'Gagal menyalin. Buka "lihat isi" dan salin manual.'); },
   'terapkan-kunci'(){
     const m=getMapel(); const r=bacaKunci(ui.kunciText);
     if(r.err) return toast(r.err);
-    if(m.kunci.length&&!confirm(`Ganti ${m.kunci.length} soal yang ada dengan ${r.kunci.length} soal baru?`)) return;
+    const bd=m.kunci.length?bandingKunci(m.kunci,r.kunci):null;
+    if(bd){
+      const dry=tandaiNilaiUlang({...m,kunci:r.kunci},bd.ulang,true);
+      const pesan=`Ganti ${m.kunci.length} soal yang ada dengan ${r.kunci.length} soal baru?\n\nPerbedaan: ${bd.sama} soal sama, ${bd.ulang.length+bd.otomatis.length} soal berubah, ${bd.baru.length} baru, ${bd.hilang.length} hilang.`+(dry.n?`\n${dry.n} penilaian tahap B akan ditandai perlu dinilai ulang (tahap A tidak berubah).`:'\nTidak ada penilaian tahap B yang perlu diulang.')+(dry.terkunci?`\n${dry.terkunci} siswa terkunci tidak diubah.`:'');
+      if(!confirm(pesan)) return;
+      const hs=tandaiNilaiUlang({...m,kunci:r.kunci},bd.ulang,false);
+      m.entriNilai=null;
+      m.ringkasKunci={waktu:new Date().toISOString(),sama:bd.sama,ulang:bd.ulang,otomatis:bd.otomatis,jenis:bd.jenis,baru:bd.baru,hilang:bd.hilang,bobot:bd.bobot,nilaiUlang:hs.n,manual:hs.manual,terkunci:hs.terkunci};
+    }
     m.kunci=r.kunci; m.catatanKunci=r.catatan||''; ui.kunciText=''; save(); render(); const bm=r.kunci.filter(k=>k.cek&&k.cek.status!=='sesuai').length; toast(`${r.kunci.length} soal diterapkan.${bm?' '+bm+' soal tidak sesuai, lihat kotak peringatan.':''}`);
   },
   'baca-hasil'(){
@@ -2038,7 +2134,7 @@ document.addEventListener('input',e=>{ const k=e.target.dataset&&e.target.datase
 
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveNow(); });
 window.addEventListener('pagehide',()=>{ saveNow(); });
-window.__app={ bagiRataBobot, bobotAktif, infoBobot, setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
+window.__app={ bandingKunci, tandaiNilaiUlang, promptPerbaruiKunci, kunciKeJson, bagiRataBobot, bobotAktif, infoBobot, setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
 /* ============ Pemasangan offline (hanya saat dibuka lewat alamat web) ============ */
 function tampilUpdate(reg){
   if($('#updBar')) return;
