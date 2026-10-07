@@ -551,14 +551,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.23';
+const APP_VERSION='4.25';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
 const MAXS = {PG:3, PGK:3, JODOH:3, ISIAN:3, URAIAN:5};
 const TANGGAPAN_URAIAN = {5:'Hebat! Jawabanmu lengkap dan tepat.',4:'Bagus! Jawabanmu hampir lengkap.',3:'Cukup baik. Jawabanmu sudah separuh jalan, lengkapi lagi ya.',2:'Kamu mulai paham. Lengkapi lagi jawabanmu ya.',1:'Terima kasih sudah mencoba. Ayo belajar lagi ya.',0:'Soal ini belum dijawab. Ayo dicoba ya.'};
-const JENIS_DOK = {PG:'PG', PGK:'PGK', JODOH:'Menjodoh<br>kan', ISIAN:'Isian<br>Singkat', URAIAN:'Uraian'};
+const JENIS_DOK = {PG:'PG', PGK:'PGK', JODOH:'Menjodohkan', ISIAN:'Isian<br>Singkat', URAIAN:'Uraian'};
 const SEBUTAN_URAIAN = {5:'Hebat sekali',4:'Bagus',3:'Cukup baik',2:'Mulai paham',1:'Ayo coba lagi',0:'Belum dijawab'};
 const MAPEL_SARAN = ["Al Qur'an Hadis","Akidah Akhlak","Fikih","SKI","Bahasa Arab","Pendidikan Pancasila","Bahasa Indonesia","Matematika","IPAS","PJOK","SBdP","Bahasa Inggris","Bahasa Jawa","Ke-NU-an","Nahwu","Shorof","Durusul Fiqhiyah","Tajwid"];
 const FENCE = '`'.repeat(3);
@@ -779,7 +779,7 @@ function blokUraian(it,a,sr){
     const tampil=new Set(); P.forEach((_,i)=>{ if(ok.has(i+1)) tampil.add(i); }); for(let i=0;i<P.length&&tampil.size<10;i++) tampil.add(i);
     const idx=[...tampil].sort((x,y)=>x-y).slice(0,Math.max(10,ok.size));
     const TD='border:none;padding:0;';
-    out.push(`<table cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed;border-collapse:collapse;border:none;margin:0"><tr><td style="${TD}width:13pt"></td><td style="${TD}width:21pt"></td><td style="${TD}"></td></tr><tr><td colspan="3" style="${TD}"><b>Jawaban yang tepat</b> (&#10003; = jawabanmu)</td></tr>`
+    out.push(`<table cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed;border-collapse:collapse;border:none;margin:0"><tr><td style="${TD}width:13pt"></td><td style="${TD}width:21pt"></td><td style="${TD}"></td></tr><tr><td colspan="3" style="${TD}"><b>Jawaban yang tepat</b></td></tr><tr><td colspan="3" style="${TD}"><i>(jawabanmu &#10003;)</i></td></tr>`
       +idx.map(i=>`<tr><td style="${TD}vertical-align:top">${ok.has(i+1)?'&#10003;':''}</td><td style="${TD}vertical-align:top">(${i+1})</td><td style="${TD}vertical-align:top">${esc(P[i])}</td></tr>`).join('')
       +(P.length>idx.length?`<tr><td colspan="3" style="${TD}">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</td></tr>`:'')+'{{SP}}</table>');
   }
@@ -1253,7 +1253,7 @@ function labelSkor(it,r){
   if(it.jenis==='URAIAN') return `${r.skor}/${r.max} (${SEBUTAN_URAIAN[r.skor]})`;
   return `${r.skor}/${r.max}`;
 }
-const DOC_CSS='.sd{font-family:Calibri,Arial,"Noto Naskh Arabic","Traditional Arabic",sans-serif;font-size:11pt;color:#000}.sd h1{font-size:16pt;margin:0 0 4pt}.sd h3{font-size:12pt;margin:10pt 0 4pt}.sd table{border-collapse:collapse;width:100%;margin:6pt 0;font-size:10pt;line-height:1.15}.sd td,.sd th{border:1px solid #000;padding:2.5pt 5pt;vertical-align:top;overflow-wrap:anywhere}.sd td,.sd th{color:#000}.sd th{background:#e8e8e8;text-align:center;vertical-align:middle;font-weight:bold}.sd .nilai{font-size:26pt;font-weight:bold;color:#000}.sd .box{border:1px solid #000;padding:8pt;background:#f0f0f0}';
+const DOC_CSS='.sd{font-family:Calibri,Arial,"Noto Naskh Arabic","Traditional Arabic",sans-serif;font-size:11pt;color:#000}.sd h1{font-size:16pt;margin:0 0 4pt}.sd h3{font-size:12pt;margin:10pt 0 4pt}.sd table{border-collapse:collapse;width:100%;margin:6pt 0;font-size:10pt;line-height:1.15}.sd td,.sd th{border:1px solid #000;padding:2.5pt 5pt;vertical-align:top;overflow-wrap:anywhere}.sd td,.sd th{color:#000}.sd th{font-size:11pt;padding:5pt 5pt;background:#e8e8e8;text-align:center;vertical-align:middle;font-weight:bold}.sd .nilai{font-size:26pt;font-weight:bold;color:#000}.sd .box{border:1px solid #000;padding:8pt;background:#f0f0f0}';
 function docBody(m,s){
   const h=m.hasil[s.id], r=hitung(m,s.id);
   const rows=m.kunci.map(it=>{
@@ -1272,7 +1272,7 @@ function docBody(m,s){
 <p class="u">Nilai akhir<br><span class="nilai">${r.nilai}</span> &nbsp; <span>(skor ${r.tot} dari ${r.max})</span></p>
 <table><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th>Kelompok soal</th><th>Skor</th></tr></thead><tbody>${sub}</tbody></table>
 <h3 class="u">Jawaban, skor, dan tanggapan</h3>
-<table style="table-layout:fixed;width:100%"><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th style="width:6%">No</th><th style="width:11%">Jenis</th><th style="width:24%">Jawabanmu</th><th style="width:9%">Skor</th><th style="width:50%">Tanggapan</th></tr></thead><tbody>${rows}</tbody></table>
+<table style="table-layout:fixed;width:100%"><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th style="width:6%">No</th><th style="width:14%">Jenis</th><th style="width:24%">Jawabanmu</th><th style="width:7%">Skor</th><th style="width:49%">Tanggapan</th></tr></thead><tbody>${rows}</tbody></table>
 <p class="u" style="font-size:10pt;color:#000">Bandingkan jawabanmu dengan jawaban yang tepat, lalu cek kembali di materi belajar.</p>
 ${(h.tanggapan_umum||pesanUmum(m,s))?`<div class="box u"><b>Pesan untukmu:</b><br>${esc(h.tanggapan_umum||pesanUmum(m,s))}</div>`:''}
 </div>`;
@@ -1384,7 +1384,7 @@ async function pdfSiswa(m,s){
     const root=host.querySelector('#pdfroot');
     const vektor=pdfBisaVektor(root.textContent+' '+labelDok(m,s));
     /* jalur vektor memakai Arial agar lebar huruf sama dengan Helvetica di PDF */
-    if(vektor) host.insertAdjacentHTML('afterbegin','<style>.sd,.sd *{font-family:Arial,Helvetica,"Liberation Sans",Arimo,sans-serif!important}.sd table,.sd table *{font-size:9.5pt!important}</style>');
+    if(vektor) host.insertAdjacentHTML('afterbegin','<style>.sd,.sd *{font-family:Arial,Helvetica,"Liberation Sans",Arimo,sans-serif!important}.sd table,.sd table *{font-size:9.5pt!important}.sd th,.sd th *{font-size:11pt!important}</style>');
     if(document.fonts&&document.fonts.ready) await document.fonts.ready;
     const R0=root.getBoundingClientRect(); const H=Math.ceil(R0.height);
     const rect=e=>{const r=e.getBoundingClientRect();return {t:r.top-R0.top,b:r.bottom-R0.top};};
