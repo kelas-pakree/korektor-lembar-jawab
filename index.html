@@ -551,12 +551,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.21';
+const APP_VERSION='4.22';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
 const MAXS = {PG:3, PGK:3, JODOH:3, ISIAN:3, URAIAN:5};
+const TANGGAPAN_URAIAN = {5:'Hebat! Jawabanmu lengkap dan tepat.',4:'Bagus! Jawabanmu hampir lengkap.',3:'Cukup baik. Jawabanmu sudah separuh jalan, lengkapi lagi ya.',2:'Kamu mulai paham. Lengkapi lagi jawabanmu ya.',1:'Terima kasih sudah mencoba. Ayo belajar lagi ya.',0:'Soal ini belum dijawab. Ayo dicoba ya.'};
+const JENIS_DOK = {PG:'PG', PGK:'PGK', JODOH:'Menjodoh<br>kan', ISIAN:'Isian<br>Singkat', URAIAN:'Uraian'};
 const SEBUTAN_URAIAN = {5:'Hebat sekali',4:'Bagus',3:'Cukup baik',2:'Mulai paham',1:'Ayo coba lagi',0:'Belum dijawab'};
 const MAPEL_SARAN = ["Al Qur'an Hadis","Akidah Akhlak","Fikih","SKI","Bahasa Arab","Pendidikan Pancasila","Bahasa Indonesia","Matematika","IPAS","PJOK","SBdP","Bahasa Inggris","Bahasa Jawa","Ke-NU-an","Nahwu","Shorof","Durusul Fiqhiyah","Tajwid"];
 const FENCE = '`'.repeat(3);
@@ -776,7 +778,7 @@ function blokUraian(it,a,sr){
     const ok=new Set(((a&&a.poin_terpenuhi)||[]).map(Number));
     const tampil=new Set(); P.forEach((_,i)=>{ if(ok.has(i+1)) tampil.add(i); }); for(let i=0;i<P.length&&tampil.size<10;i++) tampil.add(i);
     const idx=[...tampil].sort((x,y)=>x-y).slice(0,Math.max(10,ok.size));
-    out.push('<b>Jawaban yang tepat</b> (&#10003; = jawabanmu)'+idx.map(i=>`<br><span style="display:inline-block;width:1.3em">${ok.has(i+1)?'&#10003;':''}</span>(${i+1}) ${esc(P[i])}`).join('')+(P.length>idx.length?`<br><span style="color:#555">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</span>`:''));
+    out.push('<b>Jawaban yang tepat</b> (&#10003; = jawabanmu)'+idx.map(i=>`<br><span style="display:inline-block;width:1.3em">${ok.has(i+1)?'&#10003;':''}</span>(${i+1}) ${esc(P[i])}`).join('')+(P.length>idx.length?`<br><span style="color:#000">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</span>`:''));
   }
   const rj=rujukanMateri(it); if(rj) out.push(`<b>Cek di materi</b><br>${esc(rj)}`);
   return out;
@@ -794,8 +796,8 @@ function jawabanTepatHTML(it,a,sr){
     }
   } else if(it.kunci){
     const tj=it.jenis==='JODOH'?teksKunciJodoh(it):[];
-    h+=`<br><b>Jawaban yang tepat:</b> <bdi>${esc(it.kunci)}${tj.length?'. '+esc(tj[0]):''}</bdi>${tj.length>1?` <span style="color:#555">(boleh juga: <bdi>${esc(tj.slice(1).join(', '))}</bdi>)</span>`:''}`;
-    if(it.jenis==='ISIAN'){ const alt=String(it.alt||'').split(';').map(x=>x.trim()).filter(Boolean); if(alt.length) h+=` <span style="color:#555">(boleh juga: <bdi>${esc(alt.join(', '))}</bdi>)</span>`; }
+    h+=`<br><b>Jawaban yang tepat:</b> <bdi>${esc(it.kunci)}${tj.length?'. '+esc(tj[0]):''}</bdi>${tj.length>1?` <span style="color:#000">(boleh juga: <bdi>${esc(tj.slice(1).join(', '))}</bdi>)</span>`:''}`;
+    if(it.jenis==='ISIAN'){ const alt=String(it.alt||'').split(';').map(x=>x.trim()).filter(Boolean); if(alt.length) h+=` <span style="color:#000">(boleh juga: <bdi>${esc(alt.join(', '))}</bdi>)</span>`; }
   }
   const rj=rujukanMateri(it);
   if(h&&rj) h+=`<br><b>Cek di materi:</b> ${esc(rj)}`;
@@ -1248,17 +1250,17 @@ function labelSkor(it,r){
   if(it.jenis==='URAIAN') return `${r.skor}/${r.max} (${SEBUTAN_URAIAN[r.skor]})`;
   return `${r.skor}/${r.max}`;
 }
-const DOC_CSS='.sd{font-family:Calibri,Arial,"Noto Naskh Arabic","Traditional Arabic",sans-serif;font-size:11pt;color:#222}.sd h1{font-size:16pt;margin:0 0 4pt}.sd h3{font-size:12pt;margin:10pt 0 4pt}.sd table{border-collapse:collapse;width:100%;margin:6pt 0}.sd td,.sd th{border:1px solid #8a9a92;padding:4pt 6pt;vertical-align:top;overflow-wrap:anywhere}.sd th{background:#e3efe9;text-align:center;vertical-align:middle;font-weight:bold}.sd .nilai{font-size:26pt;font-weight:bold;color:#1f7a5a}.sd .box{border:1px solid #8a9a92;padding:8pt;background:#f4faf7}';
+const DOC_CSS='.sd{font-family:Calibri,Arial,"Noto Naskh Arabic","Traditional Arabic",sans-serif;font-size:11pt;color:#000}.sd h1{font-size:16pt;margin:0 0 4pt}.sd h3{font-size:12pt;margin:10pt 0 4pt}.sd table{border-collapse:collapse;width:100%;margin:6pt 0;font-size:10pt;line-height:1.15}.sd td,.sd th{border:1px solid #000;padding:2.5pt 5pt;vertical-align:top;overflow-wrap:anywhere}.sd td,.sd th{color:#000}.sd th{background:#e8e8e8;text-align:center;vertical-align:middle;font-weight:bold}.sd .nilai{font-size:26pt;font-weight:bold;color:#000}.sd .box{border:1px solid #000;padding:8pt;background:#f0f0f0}';
 function docBody(m,s){
   const h=m.hasil[s.id], r=hitung(m,s.id);
   const rows=m.kunci.map(it=>{
     const a=h.j[it.no]; const sr=skorItem(it,a);
     const tg=(a&&a.tanggapan)?a.tanggapan:(it.jenis==='URAIAN'?'':teksOtomatis(it,a,sr));
     let jw=a&&a.jawaban?esc(a.jawaban):'<i>(tidak dijawab)</i>';
-    if(a&&a.status&&a.status!=='ok'&&!a.dicek) jw+=' <i style="color:#b26a00">(tulisan kurang jelas, menunggu dicek guru)</i>';
+    if(a&&a.status&&a.status!=='ok'&&!a.dicek) jw+=' <i style="color:#000">(tulisan kurang jelas, menunggu dicek guru)</i>';
     const ket=keteranganUraian(it);
-    const skorSel=it.jenis==='URAIAN'?`<p style="margin:0"><b>${sr.skor}/${sr.max}</b></p><p style="margin:0">(${esc(SEBUTAN_URAIAN[sr.skor]||'')})</p>`:`<b>${esc(labelSkor(it,sr))}</b>`;
-    return `<tr class="u"><td style="text-align:center;vertical-align:top">${esc(it.no)}</td><td>${esc(JENIS[it.jenis])}</td><td dir="auto">${jw}</td><td style="text-align:center;vertical-align:top;overflow-wrap:normal">${skorSel}</td><td>${it.jenis==='URAIAN'?(()=>{ const bl=[]; if(ket) bl.push(esc(ket)); if(tg) bl.push(esc(tg)); blokUraian(it,a,sr).forEach(x=>bl.push(x)); return bl.map((x,k)=>`<p style="margin:0${k<bl.length-1?' 0 8pt':''}">${x}</p>`).join(''); })():esc(tg)+jawabanTepatHTML(it,a,sr)}</td></tr>`;
+    const skorSel=`<b>${sr.skor}/${sr.max}</b>`;
+    return `<tr class="u"><td style="text-align:center;vertical-align:top">${esc(it.no)}</td><td>${JENIS_DOK[it.jenis]||esc(JENIS[it.jenis])}</td><td dir="auto">${jw}</td><td style="text-align:center;vertical-align:top;overflow-wrap:normal">${skorSel}</td><td>${it.jenis==='URAIAN'?(()=>{ const bl=[]; bl.push(esc(tg||TANGGAPAN_URAIAN[sr.skor]||'')); if(ket) bl.push(esc(ket)); blokUraian(it,a,sr).forEach(x=>bl.push(x)); return bl.map((x,k)=>`<p style="margin:0${k<bl.length-1?' 0 8pt':''}">${x}</p>`).join(''); })():esc(tg)+jawabanTepatHTML(it,a,sr)}</td></tr>`;
   }).join('');
   const sub=JENIS_URUT.filter(j=>r.per[j].n).map(j=>`<tr class="u"><td>${esc(JENIS[j])}</td><td>${r.per[j].skor} dari ${r.per[j].max}</td></tr>`).join('');
   return `<div class="sd">
@@ -1267,22 +1269,22 @@ function docBody(m,s){
 <p class="u">Nilai akhir<br><span class="nilai">${r.nilai}</span> &nbsp; <span>(skor ${r.tot} dari ${r.max})</span></p>
 <table><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th>Kelompok soal</th><th>Skor</th></tr></thead><tbody>${sub}</tbody></table>
 <h3 class="u">Jawaban, skor, dan tanggapan</h3>
-<table style="table-layout:fixed;width:100%"><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th style="width:6%">No</th><th style="width:11%">Jenis</th><th style="width:23%">Jawabanmu</th><th style="width:16%">Skor</th><th style="width:44%">Tanggapan</th></tr></thead><tbody>${rows}</tbody></table>
-<p class="u" style="font-size:10pt;color:#555">Bandingkan jawabanmu dengan jawaban yang tepat, lalu cek kembali di materi belajar.</p>
+<table style="table-layout:fixed;width:100%"><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th style="width:6%">No</th><th style="width:11%">Jenis</th><th style="width:24%">Jawabanmu</th><th style="width:9%">Skor</th><th style="width:50%">Tanggapan</th></tr></thead><tbody>${rows}</tbody></table>
+<p class="u" style="font-size:10pt;color:#000">Bandingkan jawabanmu dengan jawaban yang tepat, lalu cek kembali di materi belajar.</p>
 ${(h.tanggapan_umum||pesanUmum(m,s))?`<div class="box u"><b>Pesan untukmu:</b><br>${esc(h.tanggapan_umum||pesanUmum(m,s))}</div>`:''}
 </div>`;
 }
 function docSiswa(m,s,pratinjau){
   return `<!doctype html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${esc(s.nama)} - ${esc(m.nama)}</title>
-<style>${DOC_CSS}${pratinjau?'body{max-width:800px;margin:16px auto;padding:0 16px}@media print{.noprint{display:none}}':'@page Section1{size:21.5cm 33cm;margin:1.5cm 1.5cm 1.5cm 1.5cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-footer:f1;}div.Section1{page:Section1;}'}</style></head><body>${pratinjau?'<p class="noprint"><button onclick="window.print()">Cetak / Simpan sebagai PDF</button></p>'+docBody(m,s):`<div class="Section1">${docBody(m,s)}</div><div style="mso-element:footer" id="f1"><p style="margin:0;border-top:solid #8a9a92 .5pt;font-size:2pt;line-height:2pt">&nbsp;</p><table width="100%" cellspacing="0" cellpadding="0" style="width:100%;border:none"><tr><td style="border:none;padding:3pt 0 0 0;font:italic 9pt Calibri,Arial,sans-serif;color:#444" dir="ltr"><i>${esc(labelTampil(m,s))}</i></td><td style="border:none;padding:3pt 0 0 0;font:9pt Calibri,Arial,sans-serif;color:#444;text-align:right;width:70pt" align="right">[<span style="mso-field-code:' PAGE '">1</span>/<span style="mso-field-code:' NUMPAGES '">1</span>]</td></tr></table></div>`}</body></html>`;
+<style>${DOC_CSS}${pratinjau?'body{max-width:800px;margin:16px auto;padding:0 16px}@media print{.noprint{display:none}}':'@page Section1{size:21.5cm 33cm;margin:1.5cm 1.5cm 1.5cm 1.5cm;mso-header-margin:.5cm;mso-footer-margin:.5cm;mso-footer:f1;}div.Section1{page:Section1;}'}</style></head><body>${pratinjau?'<p class="noprint"><button onclick="window.print()">Cetak / Simpan sebagai PDF</button></p>'+docBody(m,s):`<div class="Section1">${docBody(m,s)}</div><div style="mso-element:footer" id="f1"><p style="margin:0;border-top:solid #000 .5pt;font-size:2pt;line-height:2pt">&nbsp;</p><table width="100%" cellspacing="0" cellpadding="0" style="width:100%;border:none"><tr><td style="border:none;padding:3pt 0 0 0;font:italic 9pt Calibri,Arial,sans-serif;color:#000" dir="ltr"><i>${esc(labelTampil(m,s))}</i></td><td style="border:none;padding:3pt 0 0 0;font:9pt Calibri,Arial,sans-serif;color:#000;text-align:right;width:70pt" align="right">[<span style="mso-field-code:' PAGE '">1</span>/<span style="mso-field-code:' NUMPAGES '">1</span>]</td></tr></table></div>`}</body></html>`;
 }
 /* Footer PDF jalur foto layar digambar di kanvas agar huruf Arab pada nama tetap tampil benar */
 function footerPdf(label,no,total){
   const PXMM=8, w=215*PXMM, h=15*PXMM; const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d');
   g.fillStyle='#fff'; g.fillRect(0,0,w,h);
   const mx=15*PXMM; /* sama dengan margin kiri-kanan 1,5 cm */
-  g.fillStyle='#8a9a92'; g.fillRect(mx,1.2*PXMM,w-2*mx,Math.max(1,Math.round(0.25*PXMM)));
-  const f='"Noto Naskh Arabic","Traditional Arabic",Calibri,Arial,sans-serif'; const fs=Math.round(3.2*PXMM); g.fillStyle='#444'; g.textBaseline='middle';
+  g.fillStyle='#000'; g.fillRect(mx,1.2*PXMM,w-2*mx,Math.max(1,Math.round(0.25*PXMM)));
+  const f='"Noto Naskh Arabic","Traditional Arabic",Calibri,Arial,sans-serif'; const fs=Math.round(3.2*PXMM); g.fillStyle='#000'; g.textBaseline='middle';
   g.font=fs+'px '+f; const pg='['+no+'/'+total+']'; const wp=g.measureText(pg).width;
   g.font='italic '+fs+'px '+f;
   let tx=String(label); const maxw=w-2*mx-wp-4*PXMM; let pot=false; while(g.measureText(tx).width>maxw&&tx.length>6){ tx=tx.slice(0,-3); pot=true; }
@@ -1357,8 +1359,8 @@ function gambarRentangPdf(pdf,G,a,b,off,MM,MARGIN){
 }
 function footerVektorPdf(pdf,label,no,total){
   const mx=15, L=String(label).replace(/[⁦⁨⁩‎‏]/g,'').replace(/ /g,' ');
-  pdf.setDrawColor(138,154,146); pdf.setLineWidth(0.25); pdf.line(mx,316.2,215-mx,316.2);
-  pdf.setTextColor(68,68,68); pdf.setFontSize(9);
+  pdf.setDrawColor(0,0,0); pdf.setLineWidth(0.25); pdf.line(mx,316.2,215-mx,316.2);
+  pdf.setTextColor(0,0,0); pdf.setFontSize(9);
   pdf.setFont('helvetica','normal'); const pg='['+no+'/'+total+']'; const wp=pdf.getTextWidth(pg);
   pdf.setFont('helvetica','italic'); let tx=L; const maxw=215-2*mx-wp-4;
   while(pdf.getTextWidth(tx)>maxw&&tx.length>6) tx=tx.slice(0,-1);
@@ -1379,7 +1381,7 @@ async function pdfSiswa(m,s){
     const root=host.querySelector('#pdfroot');
     const vektor=pdfBisaVektor(root.textContent+' '+labelDok(m,s));
     /* jalur vektor memakai Arial agar lebar huruf sama dengan Helvetica di PDF */
-    if(vektor) host.insertAdjacentHTML('afterbegin','<style>.sd,.sd *{font-family:Arial,Helvetica,"Liberation Sans",Arimo,sans-serif!important}</style>');
+    if(vektor) host.insertAdjacentHTML('afterbegin','<style>.sd,.sd *{font-family:Arial,Helvetica,"Liberation Sans",Arimo,sans-serif!important}.sd table,.sd table *{font-size:9.5pt!important}</style>');
     if(document.fonts&&document.fonts.ready) await document.fonts.ready;
     const R0=root.getBoundingClientRect(); const H=Math.ceil(R0.height);
     const rect=e=>{const r=e.getBoundingClientRect();return {t:r.top-R0.top,b:r.bottom-R0.top};};
@@ -1683,8 +1685,8 @@ function stepHasil(m){
   <div class="chips" style="margin-bottom:10px">${[['all','Semua'],['cek','Perlu dicek guru'],['tunggu','Menunggu tahap B'],['belum','Belum dikoreksi']].map(([k,l])=>`<button data-act="filter" data-v="${k}" class="${ui.filter===k?'on':''}">${l}</button>`).join('')}</div>
   <div class="row" style="margin-bottom:8px"><button class="btn ghost small" data-act="final-semua" data-v="1">Kunci semua hasil</button><button class="btn ghost small" data-act="final-semua" data-v="0">Buka semua kunci</button><span class="muted">Hasil terkunci tidak berubah oleh tempel ulang.</span></div>
   ${(m.uji&&m.uji.length)?`<details><summary>Riwayat uji konsistensi (${m.uji.length})</summary><table><tr><th>Waktu</th><th>Tahap</th><th>Siswa</th><th>Sama</th><th>%</th></tr>${m.uji.slice(-8).reverse().map(u=>`<tr><td>${esc(new Date(u.t).toLocaleString('id-ID'))}</td><td>${u.tahap}</td><td>${u.siswa}</td><td>${u.sama}/${u.total}</td><td>${Math.round(u.sama/u.total*100)}%</td></tr>`).join('')}</table></details>`:''}
-  <div class="scroll"><table><tr><th>Nama</th><th>Kelas</th><th>Skor</th><th>Nilai</th><th>Status</th><th></th></tr>
-  ${list.map(s=>{const r=hitung(m,s.id); return `<tr class="${r&&r.flags?'flag':''}"><td>${esc(s.nama)}</td><td>${esc(s.kelas)}</td><td>${r?`${r.tot}/${r.max}`:'-'}</td><td>${r?`<b>${r.nilai}</b>`:'-'}</td><td>${!r?'<span class="badge bad">Belum</span>':[r.flags?`<span class="badge warn">${r.flags} perlu dicek</span>`:'',r.belum?`<span class="badge warn">${r.belum} menunggu tahap B</span>`:'',m.hasil[s.id].final?'<span class="badge">terkunci</span>':'',(!r.flags&&!r.belum&&!m.hasil[s.id].final)?'<span class="badge">Selesai</span>':''].join(' ')}</td><td>${r?`<button class="btn small" data-act="buka-siswa" data-id="${s.id}">Tinjau</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="6" class="muted">Tidak ada data.</td></tr>'}
+  <div class="scroll"><table><tr><th>No</th><th>Nama</th><th>Kelas</th><th>Skor</th><th>Nilai</th><th>Status</th><th></th></tr>
+  ${list.map(s=>{const r=hitung(m,s.id); return `<tr class="${r&&r.flags?'flag':''}"><td>${esc(absen2(s)||'-')}</td><td>${esc(s.nama)}</td><td>${esc(s.kelas)}</td><td>${r?`${r.tot}/${r.max}`:'-'}</td><td>${r?`<b>${r.nilai}</b>`:'-'}</td><td>${!r?'<span class="badge bad">Belum</span>':[r.flags?`<span class="badge warn">${r.flags} perlu dicek</span>`:'',r.belum?`<span class="badge warn">${r.belum} menunggu tahap B</span>`:'',m.hasil[s.id].final?'<span class="badge">terkunci</span>':'',(!r.flags&&!r.belum&&!m.hasil[s.id].final)?'<span class="badge">Selesai</span>':''].join(' ')}</td><td>${r?`<button class="btn small" data-act="buka-siswa" data-id="${s.id}">Tinjau</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="7" class="muted">Tidak ada data.</td></tr>'}
   </table></div></div>`;
 }
 function itemHTML(m,it,i,h){
