@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.25';
+const APP_VERSION='4.26';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -659,12 +659,39 @@ function isianOtomatis(it,jw){
 }
 /* Penyebut skor uraian: jumlah yang diminta soal (N). Tanpa N: pointer dianggap meminta 3 hal (atau semua poin bila kurang dari 3); non-pointer: sekitar 80% unsur kunci sudah lengkap */
 function jumlahDiminta(it){ const n=parseInt(it.diminta,10); return n>0?n:0; }
+function infoBobot(it){
+  if(it.jenis!=='URAIAN'||bentukUraian(it)!=='narasi') return '';
+  const P=(it.poin||[]).length; let h=it.bobotCatatan?`<div class="note" style="margin:4px 0">${esc(it.bobotCatatan)}</div>`:'';
+  if(!bobotAktif(it)) return h+'<div class="muted" style="margin:4px 0">Belum ada bobot, jadi soal ini memakai aturan lama (kira-kira 80% unsur lengkap = nilai penuh). Klik <b>Bagi rata</b> untuk memakai komponen berbobot.</div>';
+  const w=(it.bobot||[]); const s=Math.round(w.reduce((a,b)=>a+(parseFloat(b)||0),0)*100)/100;
+  if(w.length!==P) return h+`<div class="note" style="margin:4px 0">Jumlah bobot (${w.length}) tidak sama dengan jumlah komponen (${P}), jadi sementara semua komponen dianggap sama bobotnya. Perbaiki bobotnya atau klik <b>Bagi rata</b>.</div>`;
+  if(Math.abs(s-5)>=0.05) return h+`<div class="note" style="margin:4px 0">Jumlah bobot ${s}, seharusnya 5. Skor tetap dihitung proporsional (nilai penuh bila semua komponen terpenuhi).</div>`;
+  return h+'<div class="muted" style="margin:4px 0">Jumlah bobot 5. Skor = jumlah bobot komponen yang terpenuhi.</div>';
+}
 function peringatanKata(it){ const P=(it.poin||[]).length; const nk=(it.kata||[]).filter((x,j)=>String(x||'').trim()&&j>=P).length; return nk?`<div class="note" style="margin:4px 0">Ada ${nk} baris kata kunci di luar jumlah poin (${P}), jadi belum dipakai. Untuk menambah jawaban alternatif, tulis poinnya di kotak <b>Poin kunci</b> di atas, pada baris yang sama nomornya.</div>`:''; }
 function bentukUraian(it){ return it.bentuk==='narasi'?'narasi':'pointer'; }
+/* Uraian non-pointer berbobot: tiap komponen jawaban punya bobot, jumlah bobot = skor maksimal (5). Tanpa bobot, aturan lama dipakai. */
+function bobotAktif(it){ return it.jenis==='URAIAN'&&bentukUraian(it)==='narasi'&&Array.isArray(it.bobot)&&it.bobot.length>0&&(it.poin||[]).length>0; }
+function bobotEfektif(it){ const P=(it.poin||[]).length; const w=(it.bobot||[]).slice(0,P).map(x=>{ const n=parseFloat(String(x).replace(',','.')); return Number.isFinite(n)&&n>=0?n:NaN; }); if(w.length!==P||w.some(isNaN)||!w.some(x=>x>0)) return new Array(P).fill(1); return w; }
+function jumlahBobot(it){ return bobotEfektif(it).reduce((s,x)=>s+x,0); }
+function bobotSah(it){ const P=(it.poin||[]).length; const w=(it.bobot||[]).map(x=>parseFloat(String(x).replace(',','.'))); return w.length===P&&w.every(x=>Number.isFinite(x)&&x>=0)&&Math.abs(w.reduce((s,x)=>s+x,0)-5)<0.05; }
+function bagiRataBobot(P){ if(P<=0) return []; const dasar=Math.floor(5/P); if(dasar>=1&&5%P===0) return new Array(P).fill(dasar); if(P<=5){ const w=new Array(P).fill(1); let sisa=5-P; for(let i=0;sisa>0;i=(i+1)%P,sisa--) w[i]++; return w; } return new Array(P).fill(Math.round(500/P)/100); }
+function fmtBobot(x){ const n=Math.round(x*100)/100; return String(n).replace('.',','); }
+function skorKomponen(it,a){
+  const P=(it.poin||[]).length; const w=bobotEfektif(it); const tot=w.reduce((s,x)=>s+x,0);
+  const ok=new Set((a.poin_terpenuhi||[]).map(Number).filter(n=>n>=1&&n<=P));
+  const tamb=Math.max(0,parseInt(a.tambahan,10)||0);
+  let m=0; ok.forEach(n=>{ m+=w[n-1]; }); m+=tamb*(tot/P);
+  if(m<=0) return a.ada_usaha===false?0:1;
+  let s=Math.max(1,Math.min(5,Math.round(5*m/tot)));
+  if(a.salah_fakta&&s>=2) s-=1;
+  return s;
+}
 function penyebutUraian(it){ const P=(it.poin||[]).length; const N=jumlahDiminta(it); if(N>0) return N; return bentukUraian(it)==='pointer'?Math.max(1,Math.min(3,P)):Math.max(1,Math.round(P*0.8)); }
 function skorUraian(it,a,jw){
   const P=(it.poin||[]).length;
   if(!jw) return 0;
+  if(P&&bobotAktif(it)) return skorKomponen(it,a);
   if(!P){ const v=Number(a.skor_uraian); return Number.isFinite(v)?Math.max(0,Math.min(5,Math.round(v))):1; }
   const k=new Set((a.poin_terpenuhi||[]).map(Number).filter(n=>n>=1&&n<=P)).size+Math.max(0,parseInt(a.tambahan,10)||0);
   const r=Math.min(1,k/penyebutUraian(it));
@@ -759,7 +786,7 @@ function peringkat(m){
   return {list,rank,rankKelas};
 }
 function teksOtomatis(it,a,r){
-  if(it.jenis==='URAIAN') return SEBUTAN_URAIAN[r.skor]||'';
+  if(it.jenis==='URAIAN') return TANGGAPAN_URAIAN[r.skor]||'';
   if(r.kosong) return 'Belum dijawab. Ayo dicoba lagi lain waktu ya.';
   if(r.skor>=r.max) return 'Tepat sekali, pertahankan ya!';
   if(it.jenis==='PG'&&r.skor===2) return 'Ada pilihanmu yang benar. Pilih satu jawaban saja ya.';
@@ -778,9 +805,9 @@ function blokUraian(it,a,sr){
     const ok=new Set(((a&&a.poin_terpenuhi)||[]).map(Number));
     const tampil=new Set(); P.forEach((_,i)=>{ if(ok.has(i+1)) tampil.add(i); }); for(let i=0;i<P.length&&tampil.size<10;i++) tampil.add(i);
     const idx=[...tampil].sort((x,y)=>x-y).slice(0,Math.max(10,ok.size));
-    const TD='border:none;padding:0;';
-    out.push(`<table cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed;border-collapse:collapse;border:none;margin:0"><tr><td style="${TD}width:13pt"></td><td style="${TD}width:21pt"></td><td style="${TD}"></td></tr><tr><td colspan="3" style="${TD}"><b>Jawaban yang tepat</b></td></tr><tr><td colspan="3" style="${TD}"><i>(jawabanmu &#10003;)</i></td></tr>`
-      +idx.map(i=>`<tr><td style="${TD}vertical-align:top">${ok.has(i+1)?'&#10003;':''}</td><td style="${TD}vertical-align:top">(${i+1})</td><td style="${TD}vertical-align:top">${esc(P[i])}</td></tr>`).join('')
+    const TD='border:none;padding:0;'; const bw=bobotAktif(it)?(()=>{ const w=bobotEfektif(it), s=w.reduce((a,b)=>a+b,0); return Math.abs(s-5)<0.05?w:w.map(v=>Math.round(v*500/s)/100); })():[];
+    out.push(`<table cellspacing="0" cellpadding="0" style="width:100%;table-layout:fixed;border-collapse:collapse;border:none;margin:0"><tr><td style="${TD}width:13pt"></td><td style="${TD}width:21pt"></td><td style="${TD}"></td></tr><tr><td colspan="3" style="${TD}"><b>${bobotAktif(it)?'Komponen jawaban':'Jawaban yang tepat'}</b></td></tr><tr><td colspan="3" style="${TD}"><i>(jawabanmu &#10003;)</i></td></tr>`
+      +idx.map(i=>`<tr><td style="${TD}vertical-align:top">${ok.has(i+1)?'&#10003;':''}</td><td style="${TD}vertical-align:top">(${i+1})</td><td style="${TD}vertical-align:top">${esc(P[i])}${bobotAktif(it)?` &middot; ${fmtBobot(bw[i])} poin`:''}</td></tr>`).join('')
       +(P.length>idx.length?`<tr><td colspan="3" style="${TD}">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</td></tr>`:'')+'{{SP}}</table>');
   }
   const rj=rujukanMateri(it); if(rj) out.push(`<b>Cek di materi</b><br>${esc(rj)}`);
@@ -943,7 +970,7 @@ function promptNilai(m,i){
     if(g.jenis==='ISIAN') h=`## Soal ${g.no} | ISIAN | kunci: ${it.kunci}${it.alt?` | alternatif: ${it.alt}`:''}`;
     else if(g.jenis==='JODOH') h=`## Soal ${g.no} | MENJODOHKAN (hanya bagian teks jawaban siswa) | jawaban kunci: ${teksKunciJodoh(it)[0]||''}${teksKunciJodoh(it).length>1?` | alternatif: ${teksKunciJodoh(it).slice(1).join('; ')}`:''}`;
     else if((it.poin||[]).length){
-      h=`## Soal ${g.no} | URAIAN | ${bentukUraian(it)==='narasi'?(jumlahDiminta(it)?`jawaban berupa penjelasan; dituntut ${jumlahDiminta(it)} unsur`:'jawaban berupa penjelasan; nilai kelengkapan dan ketepatan'):`soal meminta ${penyebutUraian(it)} hal (cukup ${penyebutUraian(it)} yang tepat untuk skor penuh)`} | ${bentukUraian(it)==='narasi'?'unsur kunci (gagasan yang membentuk jawaban lengkap)':'poin kunci (daftar jawaban yang diterima)'}: ${it.poin.map((p,k)=>`(${k+1}) ${p}`).join(' ')}`;
+      h=`## Soal ${g.no} | URAIAN | ${bentukUraian(it)==='narasi'?(bobotAktif(it)?'jawaban berupa penjelasan; tandai SETIAP komponen yang sudah tertulis (skor dihitung aplikasi dari bobot komponen)':(jumlahDiminta(it)?`jawaban berupa penjelasan; dituntut ${jumlahDiminta(it)} unsur`:'jawaban berupa penjelasan; nilai kelengkapan dan ketepatan')):`soal meminta ${penyebutUraian(it)} hal (cukup ${penyebutUraian(it)} yang tepat untuk skor penuh)`} | ${bentukUraian(it)==='narasi'?(bobotAktif(it)?'komponen jawaban (bagian-bagian yang membentuk jawaban lengkap)':'unsur kunci (gagasan yang membentuk jawaban lengkap)'):'poin kunci (daftar jawaban yang diterima)'}: ${it.poin.map((p,k)=>`(${k+1}) ${p}`).join(' ')}`;
       const kw=it.poin.map((p,k)=>String((it.kata||[])[k]||'').trim()?`poin ${k+1}: ${String(it.kata[k]).trim()}`:'').filter(Boolean);
       if(kw.length) h+=`\nkata kunci yang lazim muncul (petunjuk, bukan syarat mutlak): ${kw.join(' ; ')}`;
     } else h=`## Soal ${g.no} | URAIAN | tanpa poin kunci: beri skor 0 sampai 5 (5 = lengkap dan benar)`;
@@ -1108,7 +1135,8 @@ function bacaKunci(text){
     if(!JENIS[jenis]) continue;
     let no=String(x.no==null?'':x.no).trim(); if(!no||seen.has(no)) continue; seen.add(no);
     const it={no,jenis,kunci:'',alt:'',poin:[],rujukan:String(x.rujukan==null?'':x.rujukan).trim()};
-    if(jenis==='URAIAN'){ it.poin=(Array.isArray(x.poin)?x.poin:String(x.poin||'').split('\n')).map(s=>String(s).trim()).filter(Boolean); it.diminta=(parseInt(x.diminta,10)>0?String(parseInt(x.diminta,10)):''); it.bentuk=/narasi|non/i.test(String(x.bentuk||''))?'narasi':'pointer'; it.kata=(Array.isArray(x.kata_kunci)?x.kata_kunci:[]).slice(0,it.poin.length).map(k=>Array.isArray(k)?k.join(', '):String(k||'')); }
+    if(jenis==='URAIAN'){ it.poin=(Array.isArray(x.poin)?x.poin:String(x.poin||'').split('\n')).map(s=>String(s).trim()).filter(Boolean); it.diminta=(parseInt(x.diminta,10)>0?String(parseInt(x.diminta,10)):''); it.bentuk=/narasi|non/i.test(String(x.bentuk||''))?'narasi':'pointer'; it.kata=(Array.isArray(x.kata_kunci)?x.kata_kunci:[]).slice(0,it.poin.length).map(k=>Array.isArray(k)?k.join(', '):String(k||''));
+      if(it.bentuk==='narasi'&&Array.isArray(x.bobot)&&it.poin.length){ const bw=x.bobot.map(v=>parseFloat(String(v).replace(',','.'))); if(bw.length===it.poin.length&&bw.every(v=>Number.isFinite(v)&&v>=0)&&bw.some(v=>v>0)){ const s=bw.reduce((a,b)=>a+b,0); if(Math.abs(s-5)<0.05) it.bobot=bw; else { it.bobot=bw.map(v=>Math.round(v*500/s)/100); it.bobotCatatan=`Jumlah bobot dari Claude ${Math.round(s*100)/100}, bukan 5, jadi disesuaikan secara proporsional. Mohon dicek.`; } } else it.bobotCatatan='Bobot dari Claude tidak sesuai jumlah komponen, jadi soal ini memakai aturan penilaian lama. Isi bobot di langkah Kunci.'; } }
     else it.kunci=Array.isArray(x.kunci)?x.kunci.join(','):String(x.kunci==null?'':x.kunci).trim();
     if(jenis==='JODOH') it.teks=Array.isArray(x.jawaban)?x.jawaban.join('; '):String(x.jawaban==null?(x.teks||''):x.jawaban).trim();
     if(jenis==='ISIAN') it.alt=Array.isArray(x.alt)?x.alt.join('; '):String(x.alt||'');
@@ -1217,7 +1245,7 @@ PROSEDUR PEMERIKSAAN (urut untuk setiap soal)
 5. Untuk SETIAP soal isi "rujukan": bagian materi tempat jawabannya dapat dicek siswa, singkat (misal "Bab 2, hlm. 14" atau "Bab 2, bagian Rukun Salat"). Jangan mengarang nomor halaman: bila halamannya tidak pasti, tulis judul bab atau bagian saja. Untuk soal di luar materi, tulis nama sumber luarnya (misal "Buku siswa Kemenag kelas 4"). Kosongkan hanya bila benar-benar tidak ada rujukan.
 6. Untuk setiap soal URAIAN isi juga "kata_kunci": daftar yang sejajar dengan "poin"; tiap elemennya 2 sampai 5 kata atau frasa pendek (termasuk sinonim sederhana) yang biasanya muncul bila anak menulis poin itu. Dipakai aplikasi sebagai petunjuk penilaian.
 7. Untuk setiap soal URAIAN isi juga "diminta": angka jumlah hal yang diminta perintah soal (misal "Sebutkan 3 rukun ..." menjadi 3). Isi null bila perintah tidak menyebut jumlah. "poin" boleh memuat lebih banyak jawaban yang diterima daripada jumlah yang diminta.
-8. Untuk setiap soal URAIAN isi juga "bentuk": "pointer" bila jawabannya berupa butir-butir yang disebutkan (sebutkan, sebutkan contoh, tuliskan macam-macam, dan sejenisnya; bila perintah tidak menyebut jumlah, aplikasi menganggap diminta 3 hal), atau "non-pointer" bila jawabannya berupa penjelasan (jelaskan, mengapa, bagaimana, apa akibatnya). Untuk non-pointer, "poin" berisi unsur-unsur yang membentuk jawaban lengkap dan benar.
+8. Untuk setiap soal URAIAN isi juga "bentuk": "pointer" bila jawabannya berupa butir-butir yang disebutkan (sebutkan, sebutkan contoh, tuliskan macam-macam, dan sejenisnya; bila perintah tidak menyebut jumlah, aplikasi menganggap diminta 3 hal), atau "non-pointer" bila jawabannya berupa penjelasan (jelaskan, mengapa, bagaimana, apa akibatnya). Untuk non-pointer, "poin" berisi komponen-komponen jawaban (lihat KODE JENIS SOAL) dan "bobot" wajib diisi.
 Jika dokumen materi tidak terlampir, tulis di "catatan_umum" bahwa materi tidak ada, lalu periksa semua soal ke sumber luar.
 
 KODE JENIS SOAL
@@ -1225,7 +1253,10 @@ KODE JENIS SOAL
 - PGK = pilihan ganda kompleks (kunci: huruf dipisah koma, misal "A,C")
 - JODOH = menjodohkan. Satu pasangan dihitung SATU entri. Beri nomor sendiri, misal "26a", "26b". "kunci": huruf opsi pasangan itu (misal "C"). "jawaban": teks yang dijodohkan pada opsi itu (misal "Zakat"); beberapa penulisan yang sama-sama benar dipisah titik koma. Siswa boleh menulis opsi saja, jawaban saja, atau keduanya.
 - ISIAN = isian singkat (kunci: jawaban utama; "alt": daftar jawaban lain yang juga benar, boleh kosong)
-- URAIAN = uraian. Tulis "poin" kunci yang singkat dan jelas, masing-masing satu gagasan yang dapat muncul pada jawaban benar. GALI SEBANYAK MUNGKIN dari materi (sampai 10 poin, urut dari yang paling utama) agar jawaban benar siswa yang berbeda-beda terjaring, termasuk gagasan yang bisa dikaitkan dengan poin utama (untuk uraian yang diubah, "kunci_asli" berisi poin lama dalam satu kalimat).
+- URAIAN = uraian. Tulis "poin" kunci yang singkat dan jelas, masing-masing satu gagasan yang dapat muncul pada jawaban benar.
+  * Bentuk "pointer": GALI SEBANYAK MUNGKIN dari materi (sampai 10 poin, urut dari yang paling utama) agar jawaban benar siswa yang berbeda-beda terjaring, termasuk gagasan yang bisa dikaitkan dengan poin utama.
+  * Bentuk "non-pointer": "poin" berisi KOMPONEN jawaban lengkap, yaitu bagian-bagian yang bersama-sama membentuk jawaban yang benar. Tulis 2 sampai 6 komponen berupa frasa pendek yang berdiri sendiri dan tidak saling tumpang tindih; jangan menulis alternatif kalimat. Isi juga "bobot": daftar angka yang sejajar dengan "poin", JUMLAHNYA HARUS TEPAT 5. Bagi menurut keluasan komponen: komponen inti atau luas mendapat bobot lebih besar, komponen sempit lebih kecil. Contoh: 5 komponen sama penting = 1,1,1,1,1; 3 komponen = 2,2,1 atau 3,1,1; 2 komponen = 3,2; 4 komponen = 2,1,1,1; 6 komponen sama penting = 0.83 masing-masing. Pecahan hanya bila perlu.
+  * Untuk uraian yang diubah, "kunci_asli" berisi poin lama dalam satu kalimat.
 
 Pertahankan nomor soal seperti di dokumen. Jangan menambah atau mengurangi soal.
 
@@ -1238,7 +1269,8 @@ ${FENCE}json
  {"no":"11","jenis":"PGK","kunci":"A,C","status_kunci":"sesuai"},
  {"no":"16a","jenis":"JODOH","kunci":"C","jawaban":"Zakat","status_kunci":"tidak_terverifikasi","dasar":"tidak ada di materi, sumber luar tidak jelas"},
  {"no":"21","jenis":"ISIAN","kunci":"Jakarta","alt":["DKI Jakarta"],"status_kunci":"diubah_ikut_sumber_luar","kunci_asli":"Bandung","dasar":"Buku siswa Kemenag kelas 4, tanpa verifikasi web"},
- {"no":"26","jenis":"URAIAN","bentuk":"pointer","diminta":3,"poin":["poin kunci 1","poin kunci 2","poin kunci 3"],"kata_kunci":[["kata a","kata b"],["kata c"],["kata d","kata e"]],"status_kunci":"sesuai"}
+ {"no":"26","jenis":"URAIAN","bentuk":"pointer","diminta":3,"poin":["poin kunci 1","poin kunci 2","poin kunci 3"],"kata_kunci":[["kata a","kata b"],["kata c"],["kata d","kata e"]],"status_kunci":"sesuai"},
+ {"no":"27","jenis":"URAIAN","bentuk":"non-pointer","diminta":null,"poin":["komponen 1","komponen 2","komponen 3"],"bobot":[2,2,1],"kata_kunci":[["kata a"],["kata b","kata c"],["kata d"]],"status_kunci":"sesuai"}
 ]}
 ${FENCE}`;
 }
@@ -1583,7 +1615,7 @@ function ringkasanKunci(m){
   const c={}; JENIS_URUT.forEach(j=>c[j]=0); m.kunci.forEach(k=>c[k.jenis]++);
   const mx=m.kunci.reduce((t,k)=>t+MAXS[k.jenis],0);
   const dup=m.kunci.map(k=>k.no).filter((n,i,a)=>a.indexOf(n)!==i);
-  return `<p class="muted">${JENIS_URUT.filter(j=>c[j]).map(j=>`${JENIS[j]}: ${c[j]}`).join(' &middot; ')||'Belum ada soal'}${mx?` &middot; <b>Skor maksimal: ${mx}</b>`:''}</p>${(()=>{const ur=m.kunci.filter(k=>k.jenis==='URAIAN'&&(k.poin||[]).length&&!jumlahDiminta(k)); const tp=ur.filter(k=>bentukUraian(k)==='pointer').map(k=>k.no), tnr=ur.filter(k=>bentukUraian(k)==='narasi').map(k=>k.no);return (tp.length?`<div class="note">Uraian pointer nomor ${esc(tp.join(', '))} belum diisi jumlah yang diminta soal. Dianggap meminta 3 hal (atau semua poin bila kuncinya kurang dari 3): 3 poin benar sudah skor 5.</div>`:'')+(tnr.length?`<div class="note">Uraian non-pointer nomor ${esc(tnr.join(', '))} dinilai dari kelengkapan dan ketepatan: sekitar 80% unsur kunci sudah dihitung lengkap, kesalahan fakta menurunkan satu tingkat.</div>`:'');})()}${dup.length?`<div class="note">Nomor ganda: ${esc([...new Set(dup)].join(', '))}. Setiap soal harus punya nomor berbeda.</div>`:''}`;
+  return `<p class="muted">${JENIS_URUT.filter(j=>c[j]).map(j=>`${JENIS[j]}: ${c[j]}`).join(' &middot; ')||'Belum ada soal'}${mx?` &middot; <b>Skor maksimal: ${mx}</b>`:''}</p>${(()=>{const ur=m.kunci.filter(k=>k.jenis==='URAIAN'&&(k.poin||[]).length&&!jumlahDiminta(k)); const tp=ur.filter(k=>bentukUraian(k)==='pointer').map(k=>k.no), tnr=ur.filter(k=>bentukUraian(k)==='narasi'&&!bobotAktif(k)).map(k=>k.no);return (tp.length?`<div class="note">Uraian pointer nomor ${esc(tp.join(', '))} belum diisi jumlah yang diminta soal. Dianggap meminta 3 hal (atau semua poin bila kuncinya kurang dari 3): 3 poin benar sudah skor 5.</div>`:'')+(tnr.length?`<div class="note">Uraian non-pointer nomor ${esc(tnr.join(', '))} belum diberi bobot, jadi memakai aturan lama (sekitar 80% unsur lengkap = nilai penuh; kesalahan fakta menurunkan satu tingkat). Klik <b>Bagi rata</b> pada soalnya untuk memakai komponen berbobot.</div>`:'');})()}${dup.length?`<div class="note">Nomor ganda: ${esc([...new Set(dup)].join(', '))}. Setiap soal harus punya nomor berbeda.</div>`:''}`;
 }
 function ketidaksesuaian(m){ return m.kunci.filter(k=>k.cek&&k.cek.status&&k.cek.status!=='sesuai'); }
 function bannerKunci(m){
@@ -1598,7 +1630,7 @@ function bannerKunci(m){
 function stepKunci(m){
   const rows=m.kunci.map((it,i)=>{
     let isi='';
-    if(it.jenis==='URAIAN') isi=`<div class="muted" style="margin-bottom:2px"><b>Poin kunci</b> (tampil di dokumen siswa; satu poin per baris, tambahkan alternatif di baris paling bawah)</div><textarea dir="auto" data-on="k-field" data-i="${i}" data-f="poin" placeholder="Satu poin kunci per baris" style="min-height:70px">${esc((it.poin||[]).join('\n'))}</textarea><div class="muted" style="margin:6px 0 2px"><b>Kata kunci per poin</b> (petunjuk penilaian, tidak tampil; baris ke-N untuk poin ke-N)</div><textarea dir="auto" data-on="k-field" data-i="${i}" data-f="kata" placeholder="Kata kunci per poin (opsional): satu baris per poin, pisahkan kata dengan koma" style="min-height:50px">${esc((it.kata||[]).join('\n'))}</textarea><div data-warn="${i}">${peringatanKata(it)}</div><label class="muted" style="display:block;margin-top:4px">Bentuk jawaban: <select data-on="k-field" data-i="${i}" data-f="bentuk"><option value="pointer"${bentukUraian(it)==='pointer'?' selected':''}>Pointer (butir-butir)</option><option value="narasi"${bentukUraian(it)==='narasi'?' selected':''}>Non-pointer (penjelasan)</option></select></label><label class="muted" style="display:block;margin-top:4px">Jumlah yang diminta soal (N): <input type="number" min="1" data-on="k-field" data-i="${i}" data-f="diminta" value="${esc(it.diminta||'')}" style="width:70px"> ${bentukUraian(it)==='pointer'?'kosong = 3':'kosongkan bila tidak disebut'}</label>`;
+    if(it.jenis==='URAIAN') isi=`<div class="muted" style="margin-bottom:2px"><b>${bentukUraian(it)==='narasi'?'Komponen jawaban':'Poin kunci'}</b> (tampil di dokumen siswa; ${bentukUraian(it)==='narasi'?'satu komponen per baris':'satu poin per baris, tambahkan alternatif di baris paling bawah'})</div><textarea dir="auto" data-on="k-field" data-i="${i}" data-f="poin" placeholder="${bentukUraian(it)==='narasi'?'Satu komponen jawaban per baris':'Satu poin kunci per baris'}" style="min-height:70px">${esc((it.poin||[]).join('\n'))}</textarea><div class="muted" style="margin:6px 0 2px"><b>Kata kunci per poin</b> (petunjuk penilaian, tidak tampil; baris ke-N untuk poin ke-N)</div><textarea dir="auto" data-on="k-field" data-i="${i}" data-f="kata" placeholder="Kata kunci per poin (opsional): satu baris per poin, pisahkan kata dengan koma" style="min-height:50px">${esc((it.kata||[]).join('\n'))}</textarea><div data-warn="${i}">${peringatanKata(it)}</div><label class="muted" style="display:block;margin-top:4px">Bentuk jawaban: <select data-on="k-field" data-i="${i}" data-f="bentuk"><option value="pointer"${bentukUraian(it)==='pointer'?' selected':''}>Pointer (butir-butir)</option><option value="narasi"${bentukUraian(it)==='narasi'?' selected':''}>Non-pointer (penjelasan)</option></select></label>${bentukUraian(it)==='narasi'?`<div class="muted" style="margin:6px 0 2px"><b>Bobot per komponen</b> (satu angka per komponen sesuai urutan, pisahkan dengan koma atau spasi, pecahan pakai titik; jumlahnya 5)</div><div class="row"><input data-on="k-field" data-i="${i}" data-f="bobot" value="${esc((it.bobot||[]).join(', '))}" placeholder="Contoh: 2, 2, 1" style="flex:1;min-width:140px"><button class="btn ghost small" data-act="bagi-rata-bobot" data-i="${i}">Bagi rata</button></div><div data-bobot="${i}">${infoBobot(it)}</div>`:''}<label class="muted" style="display:block;margin-top:4px">Jumlah yang diminta soal (N): <input type="number" min="1" data-on="k-field" data-i="${i}" data-f="diminta" value="${esc(it.diminta||'')}" style="width:70px"> ${bentukUraian(it)==='pointer'?'kosong = 3':'kosongkan bila tidak disebut'}</label>`;
     else if(it.jenis==='ISIAN') isi=`<input dir="auto" data-on="k-field" data-i="${i}" data-f="kunci" value="${esc(it.kunci)}" placeholder="Jawaban utama" style="width:100%"><input dir="auto" data-on="k-field" data-i="${i}" data-f="alt" value="${esc(it.alt||'')}" placeholder="Jawaban lain yang benar (pisahkan dengan ;)" style="width:100%;margin-top:4px">`;
     else if(it.jenis==='JODOH') isi=`<input dir="auto" data-on="k-field" data-i="${i}" data-f="kunci" value="${esc(it.kunci)}" placeholder="Opsi, contoh: C" style="width:100%"><input dir="auto" data-on="k-field" data-i="${i}" data-f="teks" value="${esc(it.teks||'')}" placeholder="Jawaban pada opsi itu (teks); beberapa penulisan dipisah ;" style="width:100%;margin-top:4px">`;
     else isi=`<input dir="auto" data-on="k-field" data-i="${i}" data-f="kunci" value="${esc(it.kunci)}" placeholder="${it.jenis==='PGK'?'Contoh: A,C':'Contoh: B'}" style="width:100%">`;
@@ -1698,8 +1730,8 @@ function itemHTML(m,it,i,h){
   const r=skorItem(it,a);
   let kontrol='', kunciTxt='';
   if(it.jenis==='URAIAN'){
-    kunciTxt=`<div class="muted">Poin kunci:</div>`;
-    kontrol=(it.poin||[]).map((p,k)=>`<label class="poin"><input type="checkbox" data-on="h-field" data-no="${esc(it.no)}" data-f="poin" data-p="${k+1}" ${(a.poin_terpenuhi||[]).map(Number).includes(k+1)?'checked':''}><span>${esc(p)}</span></label>`).join('')
+    kunciTxt=`<div class="muted">${bobotAktif(it)?'Komponen jawaban:':'Poin kunci:'}</div>`;
+    kontrol=(it.poin||[]).map((p,k)=>`<label class="poin"><input type="checkbox" data-on="h-field" data-no="${esc(it.no)}" data-f="poin" data-p="${k+1}" ${(a.poin_terpenuhi||[]).map(Number).includes(k+1)?'checked':''}><span>${esc(p)}${bobotAktif(it)?` <b>(${fmtBobot(bobotEfektif(it)[k])} poin)</b>`:''}</span></label>`).join('')
       +`<label class="poin"><input type="checkbox" data-on="h-field" data-no="${esc(it.no)}" data-f="usaha" ${a.ada_usaha!==false?'checked':''}><span>Ada usaha menjawab</span></label><label class="muted" style="display:block;margin-top:4px">Jawaban benar di luar kunci: <input type="number" min="0" data-on="h-field" data-no="${esc(it.no)}" data-f="tambahan" value="${esc(a.tambahan||0)}" style="width:60px"></label>`;
   } else {
     kunciTxt=`<div class="muted">Kunci: <b>${esc(it.kunci)}</b>${it.jenis==='JODOH'&&it.teks?` = <b>${esc(it.teks)}</b>`:''}${it.jenis==='ISIAN'&&it.alt?` (alternatif: ${esc(it.alt)})`:''}</div>`;
@@ -1804,14 +1836,14 @@ function viewPanduan(){
   <div class="card"><h2>Langkah lain</h2><ol class="g">
   <li><b>Agenda & Siswa</b>: buat agenda, isi daftar siswa (impor Excel dengan kolom Nama, Kelas, No. Absen), tambah mata pelajaran.</li>
   <li><b>Kunci</b>: Claude memeriksa kunci ke materi (bila berbeda, materi yang menang) dan ke sumber luar untuk soal di luar materi. Nomor soal yang tidak sesuai ditampilkan di kotak peringatan dan di lembar "Catatan Kunci" pada rekap Excel. Uraian boleh diberi kata kunci per poin.</li>
-  <li><b>Unduh</b>: di dokumen siswa, soal yang belum bernilai penuh memuat <b>Jawaban yang tepat</b> (untuk uraian: keterangan jumlah yang diminta di baris paling atas, dan poin kunci selalu ditampilkan, maksimal 10 poin, termasuk saat skor penuh; tanda ✓ untuk poin yang sudah ditulis, tanpa tanda untuk jawaban lain yang bisa dipilih) dan <b>Cek di materi</b> bila rujukan diisi, agar siswa bisa mengoreksi diri. Dokumen siswa tanpa peringkat; rekap Excel memuat peringkat.</li></ol></div>
+  <li><b>Unduh</b>: di dokumen siswa, soal yang belum bernilai penuh memuat <b>Jawaban yang tepat</b> (untuk uraian non-pointer berbobot judulnya <b>Komponen jawaban</b>, tiap komponen disertai bobot poinnya; untuk uraian: keterangan jumlah yang diminta di baris paling atas, dan poin kunci selalu ditampilkan, maksimal 10 poin, termasuk saat skor penuh; tanda ✓ untuk poin yang sudah ditulis, tanpa tanda untuk jawaban lain yang bisa dipilih) dan <b>Cek di materi</b> bila rujukan diisi, agar siswa bisa mengoreksi diri. Dokumen siswa tanpa peringkat; rekap Excel memuat peringkat.</li></ol></div>
   <div class="card"><h2>Aturan skor</h2><table>
   <tr><th>Jenis</th><th>Skor</th></tr>
   <tr><td>Pilihan ganda</td><td>Benar 3; memilih lebih dari satu dan salah satunya benar 2; salah 1; kosong 0</td></tr>
   <tr><td>PG kompleks</td><td>Persis kunci 3; pilihan benar lebih banyak daripada pilihan salah 2; ada jawaban tetapi benar sama atau lebih sedikit daripada salah 1; kosong 0</td></tr>
   <tr><td>Menjodohkan</td><td>Per pasangan. Siswa boleh menulis opsi saja, jawaban saja, atau keduanya; yang tepat 3. Bila menulis opsi dan jawaban tetapi hanya salah satu yang tepat (tidak singkron) 2. Salah semua 1, kosong 0.</td></tr>
   <tr><td>Isian singkat</td><td>Tepat atau semakna 3, typo 2, salah 1, kosong 0</td></tr>
-  <tr><td>Uraian</td><td>0 sampai 5 menurut jumlah jawaban tepat dibanding yang dituntut: semua 5; kira-kira tiga perempat 4; setengah 3; ada yang tepat 2; hanya ada usaha 1; kosong 0. Yang dituntut = jumlah yang diminta soal (N). Bila soal minta 3, menyebut 3 yang tepat sudah 5 walau kunci memuat lebih banyak. Bila N lebih besar dari poin kunci, penyebutnya tetap N. Soal pointer tanpa N dianggap meminta 3 hal (bila kunci hanya punya 2 poin, yang dituntut 2). Soal non-pointer (penjelasan) dinilai dari kelengkapan unsur kunci (sekitar 80% unsur sudah lengkap) dan ketepatan: kesalahan fakta menurunkan satu tingkat. Jawaban benar di luar kunci ikut dihitung (ditandai untuk dicek).</td></tr></table>
+  <tr><td>Uraian</td><td>0 sampai 5 menurut jumlah jawaban tepat dibanding yang dituntut: semua 5; kira-kira tiga perempat 4; setengah 3; ada yang tepat 2; hanya ada usaha 1; kosong 0. Yang dituntut = jumlah yang diminta soal (N). Bila soal minta 3, menyebut 3 yang tepat sudah 5 walau kunci memuat lebih banyak. Bila N lebih besar dari poin kunci, penyebutnya tetap N. Soal pointer tanpa N dianggap meminta 3 hal (bila kunci hanya punya 2 poin, yang dituntut 2). Soal non-pointer (penjelasan) dipecah menjadi 2 sampai 6 komponen jawaban yang masing-masing punya bobot (jumlah bobot 5, dibagi menurut keluasan komponen; bobot bisa diedit di langkah Kunci). Skor = jumlah bobot komponen yang terpenuhi; kesalahan fakta menurunkan satu tingkat. Kunci non-pointer lama yang belum diberi bobot tetap memakai aturan lama (sekitar 80% unsur lengkap = nilai penuh) sampai Anda menekan <b>Bagi rata</b> atau membuat kunci ulang. Jawaban benar di luar kunci ikut dihitung (ditandai untuk dicek).</td></tr></table>
   <p><b>Nilai akhir</b> = total poin semua jenis soal &divide; skor maksimal &times; 100, dibulatkan. Peringkat memakai total poin; poin sama berarti peringkat sama.</p></div>
   <div class="card"><h2>Pasang di GitHub dan pakai offline</h2><ol class="g">
   <li>Di github.com buat repositori <b>publik</b> (misal <i>korektor-mi</i>). Isinya hanya aplikasi, tanpa data siswa.</li>
@@ -1863,6 +1895,7 @@ const ACT={
     for(let i=0;i<n;i++){ m.kunci.push({no:String(next++),jenis:ui.bulkJenis,kunci:'',alt:'',poin:[]}); }
     save(); render();
   },
+  'bagi-rata-bobot'(el){ const m=getMapel(); const it=m.kunci[+el.dataset.i]; it.bobot=bagiRataBobot((it.poin||[]).length); delete it.bobotCatatan; save(); render(); },
   'hapus-soal'(el){ const m=getMapel(); m.kunci.splice(+el.dataset.i,1); save(); render(); },
   async 'salin-prompt-kunci'(){ toast(await copyText(promptKunci(getMapel()))?'Prompt disalin. Tempel di chat claude.ai.':'Gagal menyalin. Salin manual dari kotak prompt.'); },
   async 'salin-prompt-koreksi'(){ toast(await copyText(promptKoreksi(getMapel()))?'Prompt disalin. Tempel di chat claude.ai.':'Gagal menyalin. Buka "lihat isi" dan salin manual.'); },
@@ -1963,9 +1996,11 @@ const ON={
     const m=getMapel(); const it=m.kunci[+el.dataset.i]; const f=el.dataset.f;
     if(f==='poin') it.poin=el.value.split('\n').map(s=>s.trim()).filter(Boolean);
     else if(f==='kata') it.kata=el.value.split('\n').map(s=>s.trim());
-    else if(f==='jenis'){ it.jenis=el.value; save(); return render(); }
+    else if(f==='bobot'){ const tk=el.value.split(/[\s,;]+/).filter(Boolean); if(!tk.length) delete it.bobot; else it.bobot=tk.map(x=>{ const n=parseFloat(x.replace(',','.')); return Number.isFinite(n)?Math.max(0,n):0; }); delete it.bobotCatatan; }
+    else if(f==='jenis'||f==='bentuk'){ it[f]=el.value; save(); return render(); }
     else it[f]=el.value.trim();
     if(f==='poin'||f==='kata'){ const w=document.querySelector('[data-warn="'+el.dataset.i+'"]'); if(w) w.innerHTML=peringatanKata(it); }
+    if(f==='poin'||f==='bobot'){ const w=document.querySelector('[data-bobot="'+el.dataset.i+'"]'); if(w) w.innerHTML=infoBobot(it); }
     save();
   },
   'bulk-jenis'(el){ ui.bulkJenis=el.value; },
@@ -2003,7 +2038,7 @@ document.addEventListener('input',e=>{ const k=e.target.dataset&&e.target.datase
 
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveNow(); });
 window.addEventListener('pagehide',()=>{ saveNow(); });
-window.__app={ setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
+window.__app={ bagiRataBobot, bobotAktif, infoBobot, setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
 /* ============ Pemasangan offline (hanya saat dibuka lewat alamat web) ============ */
 function tampilUpdate(reg){
   if($('#updBar')) return;
