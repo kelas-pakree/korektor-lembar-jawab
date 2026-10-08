@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.30';
+const APP_VERSION='4.31';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -821,7 +821,7 @@ function blokUraian(it,a,sr){
       +(BA?baris(usaha?'&#10003;':'','(1)','Ada usaha menjawab &middot; 1 poin'):'')
       +idx.map(i=>baris(ok.has(i+1)?'&#10003;':'',`(${nomor(i)})`,`${esc(P[i])}${BA?` &middot; ${fmtBobot(bw[i])} poin`:''}`)).join('')
       +(P.length>idx.length?`<tr><td colspan="3" style="${TD}">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</td></tr>`:'')
-      +(BA&&rk.tamb>0?`<tr><td colspan="3" style="${TD}">+ ${rk.tamb} jawaban benar di luar kunci &middot; ${fmtBobot(Math.round(rk.mt*100)/100)} poin</td></tr>`+((a.tambahan_teks||[]).length?`<tr><td colspan="3" style="${TD}">${(a.tambahan_teks||[]).map(t=>'['+esc(t)+']').join(' ')}</td></tr>`:''):'')
+      +(BA&&rk.tamb>0?`<tr><td style="${TD}vertical-align:top">&#10003;</td><td colspan="2" style="${TD}vertical-align:top">+ ${rk.tamb} jawaban benar di luar kunci &middot; ${fmtBobot(Math.round(rk.mt*100)/100)} poin</td></tr>`+((a.tambahan_teks||[]).length?`<tr><td style="${TD}"></td><td colspan="2" style="${TD}vertical-align:top">${(a.tambahan_teks||[]).map(t=>'['+esc(t)+']').join(' ')}</td></tr>`:''):'')
       +(lebihSkor?`<tr><td colspan="3" style="${TD}">&minus; 1 poin karena ada kesalahan isi jawaban</td></tr>`:'')
       +'{{SP}}</table>');
   }
