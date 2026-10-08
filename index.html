@@ -821,7 +821,7 @@ function blokUraian(it,a,sr){
       +(BA?baris(usaha?'&#10003;':'','(1)','Ada usaha menjawab &middot; 1 poin'):'')
       +idx.map(i=>baris(ok.has(i+1)?'&#10003;':'',`(${nomor(i)})`,`${esc(P[i])}${BA?` &middot; ${fmtBobot(bw[i])} poin`:''}`)).join('')
       +(P.length>idx.length?`<tr><td colspan="3" style="${TD}">... dan ${P.length-idx.length} jawaban lain yang juga diterima.</td></tr>`:'')
-      +(BA&&rk.tamb>0?`<tr><td colspan="3" style="${TD}">+ ${rk.tamb} jawaban benar di luar kunci &middot; ${fmtBobot(Math.round(rk.mt*100)/100)} poin</td></tr>`:'')
+      +(BA&&rk.tamb>0?`<tr><td colspan="3" style="${TD}">+ ${rk.tamb} jawaban benar di luar kunci &middot; ${fmtBobot(Math.round(rk.mt*100)/100)} poin</td></tr>`+((a.tambahan_teks||[]).length?`<tr><td colspan="3" style="${TD}">${(a.tambahan_teks||[]).map(t=>'['+esc(t)+']').join(' ')}</td></tr>`:''):'')
       +(lebihSkor?`<tr><td colspan="3" style="${TD}">&minus; 1 poin karena ada kesalahan isi jawaban</td></tr>`:'')
       +'{{SP}}</table>');
   }
@@ -894,7 +894,7 @@ function silangUraian(it,a){
 function jawabanAda(a){ return ((String(a&&a.jawaban||'').match(/[\p{L}\p{N}]/gu))||[]).length>=2; }
 function setNilai(it,a,val,ragu){
   if(it.jenis==='ISIAN'||it.jenis==='JODOH') a.penilaian=val.penilaian;
-  else if((it.poin||[]).length){ a.poin_terpenuhi=val.poin.slice(); a.ada_usaha=val.usaha||val.tambahan>0; a.tambahan=val.tambahan||0; a.salah_fakta=!!val.salah; }
+  else if((it.poin||[]).length){ a.poin_terpenuhi=val.poin.slice(); a.ada_usaha=val.usaha||val.tambahan>0; a.tambahan=val.tambahan||0; a.tambahan_teks=(val.tambahan>0&&val.teks)?val.teks.slice():[]; a.salah_fakta=!!val.salah; }
   else { a.skor_uraian=val.skor; a.ada_usaha=true; }
   a.dinilai=true; a.nilai_ragu=!!ragu; a.catatan_nilai='';
   if(it.jenis==='URAIAN'&&(it.poin||[]).length&&!(a.poin_terpenuhi||[]).length&&!(parseInt(a.tambahan,10)>0)&&a.ada_usaha===false&&jawabanAda(a)){ a.ada_usaha=true; a.nilai_ragu=true; a.catatan_nilai='Claude menilai "tanpa usaha", tetapi siswa menulis jawaban, jadi diberi skor 1. Bila memang tidak ada usaha, hapus centang "Ada usaha menjawab".'; }
@@ -998,7 +998,7 @@ function promptNilai(m,i){
   return `Kamu penilai asesmen MI (Madrasah Ibtidaiyah). Mata pelajaran: ${m.nama}. Di bawah ini jawaban ${adaIsian?'isian':''}${adaIsian&&adaUr?' dan ':''}${adaUr?'uraian':''} siswa yang sudah diketik ulang. Identitas siswa sengaja tidak disertakan. Nilai tiap jawaban terhadap kunci. Kerjakan semuanya sendiri tanpa bertanya.${E.paket.length>1?` (Paket ${i+1} dari ${E.paket.length}.)`:''}
 
 ATURAN
-${adaIsian?'- ISIAN dan MENJODOHKAN: "tepat" bila sama atau semakna dengan kunci atau alternatif; "typo" bila isinya benar tetapi ada salah tulis kecil; "salah" bila keliru.\n':''}${adaUr?'- URAIAN: tulis nomor poin kunci yang terpenuhi, dipisah koma (misal 1,3). Poin terpenuhi bila gagasan intinya tertulis, walau kata-katanya berbeda, atau bila jawaban siswa dapat dikaitkan dan disimpulkan langsung dengan poin itu (tulis nomor poin yang berkaitan). Tulis "0" bila tidak ada poin terpenuhi tetapi jawaban siswa ada isinya, termasuk jawaban yang salah atau tidak sesuai soal (siswa tetap dianggap berusaha). Tulis "x" hanya bila jawaban kosong, hanya tanda "-", atau coretan tanpa isi; jangan tulis "x" untuk jawaban yang berisi tulisan. Untuk soal tanpa poin kunci, tulis skor 0 sampai 5. Bila siswa menyebut hal yang benar dan sesuai konteks soal tetapi tidak ada di poin kunci, tambahkan +1 untuk tiap hal itu (misal 1,3,+1), tetapi hanya bila hal itu tidak dapat dikaitkan dengan poin kunci mana pun. Jangan menghitung jawaban yang sama dua kali. Untuk soal berjenis "jawaban berupa penjelasan", tambahkan tanda ! di belakang (misal 1,3!) hanya bila jawaban memuat kesalahan fakta yang jelas bertentangan dengan kunci atau materi; ketidaklengkapan bukan kesalahan fakta.\n':''}- Murah hati tetapi proporsional untuk anak MI. Jangan menghukum salah ejaan atau tulisan kurang rapi.
+${adaIsian?'- ISIAN dan MENJODOHKAN: "tepat" bila sama atau semakna dengan kunci atau alternatif; "typo" bila isinya benar tetapi ada salah tulis kecil; "salah" bila keliru.\n':''}${adaUr?'- URAIAN: tulis nomor poin kunci yang terpenuhi, dipisah koma (misal 1,3). Poin terpenuhi bila gagasan intinya tertulis, walau kata-katanya berbeda, atau bila jawaban siswa dapat dikaitkan dan disimpulkan langsung dengan poin itu (tulis nomor poin yang berkaitan). Tulis "0" bila tidak ada poin terpenuhi tetapi jawaban siswa ada isinya, termasuk jawaban yang salah atau tidak sesuai soal (siswa tetap dianggap berusaha). Tulis "x" hanya bila jawaban kosong, hanya tanda "-", atau coretan tanpa isi; jangan tulis "x" untuk jawaban yang berisi tulisan. Untuk soal tanpa poin kunci, tulis skor 0 sampai 5. Bila siswa menyebut hal yang benar dan sesuai konteks soal tetapi tidak ada di poin kunci, tambahkan +1 untuk tiap hal itu (misal 1,3,+1), dan tulis hal itu dengan kata-kata singkat di dalam kurung siku tepat setelah +1 (misal 1,3,+1 [kaki lecet]); untuk dua hal tulis +1 [hal pertama] +1 [hal kedua]. Lakukan ini hanya bila hal itu tidak dapat dikaitkan dengan poin kunci mana pun. Jangan menghitung jawaban yang sama dua kali. Untuk soal berjenis "jawaban berupa penjelasan", tambahkan tanda ! di belakang (misal 1,3!) hanya bila jawaban memuat kesalahan fakta yang jelas bertentangan dengan kunci atau materi; ketidaklengkapan bukan kesalahan fakta.\n':''}- Murah hati tetapi proporsional untuk anak MI. Jangan menghukum salah ejaan atau tulisan kurang rapi.
 - KONSISTENSI: jawaban yang isinya sama harus mendapat penilaian yang sama. Pakai hanya kunci, poin, dan kata kunci di bawah sebagai tolok ukur; jangan menambah standar sendiri dan jangan menebak maksud yang tidak tertulis. Bila ragu antara dua penilaian, pilih yang lebih tinggi lalu tambahkan tanda ? di belakangnya.
 - Bila dokumen materi pelajaran dilampirkan, pakai sebagai acuan makna jawaban yang dapat diterima.
 
@@ -1021,7 +1021,7 @@ function bacaNilai(m,text){
     const code=mm[1]+'#'+mm[2]; const e=E.kode[code]; if(!e){ tdk++; return; }
     if(seen.has(code)) return;
     const it=m.kunci.find(k=>k.no===e.no); if(!it){ tdk++; return; }
-    let v=mm[3].trim(); const rg=/\?\s*$/.test(v); v=v.replace(/\?+\s*$/,'').trim().toLowerCase();
+    const teksT=[]; let v=mm[3].replace(/\[([^\]]*)\]/g,(x,t)=>{ t.split(/\s*;\s*/).map(z=>z.trim()).filter(Boolean).forEach(z=>teksT.push(z)); return ' '; }).trim(); const rg=/\?\s*$/.test(v); v=v.replace(/\?+\s*$/,'').trim().toLowerCase();
     let val=null; const P=(it.poin||[]).length;
     if(e.jenis==='ISIAN'||e.jenis==='JODOH'){ const w=v.match(/^(tepat|typo|salah)/); if(w) val={penilaian:w[1]}; }
     else if(P){
@@ -1030,6 +1030,7 @@ function bacaNilai(m,text){
       if(/^(x|-|tidak ada usaha|tanpa usaha)$/.test(v)&&!tamb) val={poin:[],usaha:false,tambahan:0,salah:false};
       else if(v==='0'||(!v&&tamb)) val={poin:[],usaha:true,tambahan:tamb,salah:sal};
       else { const nums=[...new Set((v.match(/\d+/g)||[]).map(Number).filter(n=>n>=1&&n<=P))].sort((x,y)=>x-y); if(nums.length) val={poin:nums,usaha:true,tambahan:tamb,salah:sal}; }
+      if(val&&val.tambahan>0&&teksT.length) val.teks=teksT.slice(0,10);
     } else { const n=parseFloat(v.replace(',','.')); if(Number.isFinite(n)) val={skor:Math.max(0,Math.min(5,Math.round(n)))}; }
     if(!val){ tdk++; return; }
     seen.add(code); if(rg) ragu++;
@@ -1234,7 +1235,7 @@ function normalJawaban(m,x){
       poin_terpenuhi:Array.isArray(a.poin_terpenuhi)?a.poin_terpenuhi.map(Number).filter(Number.isFinite):[],
       ada_usaha:a.ada_usaha!==false, skor_uraian:a.skor!=null?a.skor:undefined,
       tanggapan:String(a.tanggapan||''), dicek:false, skor_manual:'',
-      dinilai:!!(['tepat','typo','salah'].includes(String(a.penilaian||'').toLowerCase())||Array.isArray(a.poin_terpenuhi)||a.skor!=null), nilai_ragu:false, catatan_nilai:'', tambahan:Math.max(0,parseInt(a.tambahan,10)||0)
+      dinilai:!!(['tepat','typo','salah'].includes(String(a.penilaian||'').toLowerCase())||Array.isArray(a.poin_terpenuhi)||a.skor!=null), nilai_ragu:false, catatan_nilai:'', tambahan:Math.max(0,parseInt(a.tambahan,10)||0), tambahan_teks:Array.isArray(a.tambahan_teks)?a.tambahan_teks.map(String):[]
     };
   });
   const kunciNos=new Set(m.kunci.map(k=>k.no));
@@ -1262,7 +1263,7 @@ function bandingKunci(lama,baru){
   L.forEach((k,no)=>{ if(!B.has(no)) r.hilang.push(no); });
   return r;
 }
-function kosongkanNilaiB(a){ a.dinilai=false; a.poin_terpenuhi=[]; a.penilaian=''; a.tambahan=0; a.salah_fakta=false; a.ada_usaha=true; delete a.skor_uraian; a.nilai_ragu=false; a.catatan_nilai=''; }
+function kosongkanNilaiB(a){ a.dinilai=false; a.poin_terpenuhi=[]; a.penilaian=''; a.tambahan=0; a.tambahan_teks=[]; a.salah_fakta=false; a.ada_usaha=true; delete a.skor_uraian; a.nilai_ragu=false; a.catatan_nilai=''; }
 /* nos: nomor soal yang penilaiannya diulang (null = semua soal). dry: hanya menghitung. */
 function tandaiNilaiUlang(m,nos,dry){
   const set=nos?new Set(nos.map(String)):null; let n=0, manual=0, terkunci=0;
@@ -1826,7 +1827,7 @@ function itemHTML(m,it,i,h){
   if(it.jenis==='URAIAN'){
     kunciTxt=`<div class="muted">${bobotAktif(it)?'Komponen jawaban:':'Poin kunci:'}</div>`;
     kontrol=(it.poin||[]).map((p,k)=>`<label class="poin"><input type="checkbox" data-on="h-field" data-no="${esc(it.no)}" data-f="poin" data-p="${k+1}" ${(a.poin_terpenuhi||[]).map(Number).includes(k+1)?'checked':''}><span>${esc(p)}${bobotAktif(it)?` <b>(${fmtBobot(bobotEfektif(it)[k])} poin)</b>`:''}</span></label>`).join('')
-      +`<label class="poin"><input type="checkbox" data-on="h-field" data-no="${esc(it.no)}" data-f="usaha" ${a.ada_usaha!==false?'checked':''}><span>Ada usaha menjawab</span></label><label class="muted" style="display:block;margin-top:4px">Jawaban benar di luar kunci: <input type="number" min="0" data-on="h-field" data-no="${esc(it.no)}" data-f="tambahan" value="${esc(a.tambahan||0)}" style="width:60px"></label>`;
+      +`<label class="poin"><input type="checkbox" data-on="h-field" data-no="${esc(it.no)}" data-f="usaha" ${a.ada_usaha!==false?'checked':''}><span>Ada usaha menjawab</span></label><label class="muted" style="display:block;margin-top:4px">Jawaban benar di luar kunci: <input type="number" min="0" data-on="h-field" data-no="${esc(it.no)}" data-f="tambahan" value="${esc(a.tambahan||0)}" style="width:60px"></label><label class="muted" style="display:block;margin-top:4px">Isi jawaban di luar kunci (pisahkan dengan titik koma; tampil di dokumen dalam kurung siku): <input data-on="h-field" data-no="${esc(it.no)}" data-f="tambahan_teks" value="${esc((a.tambahan_teks||[]).join('; '))}" style="width:100%;max-width:420px"></label>`;
   } else {
     kunciTxt=`<div class="muted">Kunci: <b>${esc(it.kunci)}</b>${it.jenis==='JODOH'&&it.teks?` = <b>${esc(it.teks)}</b>`:''}${it.jenis==='ISIAN'&&it.alt?` (alternatif: ${esc(it.alt)})`:''}</div>`;
     if(it.jenis==='ISIAN'||(it.jenis==='JODOH'&&teksKunciJodoh(it).length)) kontrol=`<label class="muted">Penilaian isian<br><select data-on="h-field" data-no="${esc(it.no)}" data-f="penilaian"><option value="">Otomatis</option>${['tepat','typo','salah'].map(v=>`<option value="${v}" ${a.penilaian===v?'selected':''}>${v[0].toUpperCase()+v.slice(1)}</option>`).join('')}</select></label>`;
@@ -1936,7 +1937,7 @@ function viewPanduan(){
   <div class="card"><h2>Langkah lain</h2><ol class="g">
   <li><b>Agenda & Siswa</b>: buat agenda, isi daftar siswa (impor Excel dengan kolom Nama, Kelas, No. Absen), tambah mata pelajaran.</li>
   <li><b>Kunci</b>: Claude memeriksa kunci ke materi (bila berbeda, materi yang menang) dan ke sumber luar untuk soal di luar materi. Nomor soal yang tidak sesuai ditampilkan di kotak peringatan dan di lembar "Catatan Kunci" pada rekap Excel. Uraian boleh diberi kata kunci per poin.</li>
-  <li><b>Unduh</b>: di dokumen siswa, soal yang belum bernilai penuh memuat <b>Jawaban yang tepat</b> (untuk uraian non-pointer berbobot judulnya <b>Komponen jawaban</b>, baris pertama selalu <b>(1) Ada usaha menjawab · 1 poin</b>, komponen bernomor mulai (2), tiap komponen disertai bobot poinnya, dan jawaban benar di luar kunci tampil sebagai baris tersendiri; untuk uraian: keterangan jumlah yang diminta di baris paling atas, dan poin kunci selalu ditampilkan, maksimal 10 poin, termasuk saat skor penuh; tanda ✓ untuk poin yang sudah ditulis, tanpa tanda untuk jawaban lain yang bisa dipilih) dan <b>Cek di materi</b> bila rujukan diisi, agar siswa bisa mengoreksi diri. Dokumen siswa tanpa peringkat; rekap Excel memuat peringkat.</li></ol></div>
+  <li><b>Unduh</b>: di dokumen siswa, soal yang belum bernilai penuh memuat <b>Jawaban yang tepat</b> (untuk uraian non-pointer berbobot judulnya <b>Komponen jawaban</b>, baris pertama selalu <b>(1) Ada usaha menjawab · 1 poin</b>, komponen bernomor mulai (2), tiap komponen disertai bobot poinnya, dan jawaban benar di luar kunci tampil sebagai baris tersendiri, disusul isinya dalam kurung siku bila Claude atau guru mengisinya; untuk uraian: keterangan jumlah yang diminta di baris paling atas, dan poin kunci selalu ditampilkan, maksimal 10 poin, termasuk saat skor penuh; tanda ✓ untuk poin yang sudah ditulis, tanpa tanda untuk jawaban lain yang bisa dipilih) dan <b>Cek di materi</b> bila rujukan diisi, agar siswa bisa mengoreksi diri. Dokumen siswa tanpa peringkat; rekap Excel memuat peringkat.</li></ol></div>
   <div class="card"><h2>Aturan skor</h2><table>
   <tr><th>Jenis</th><th>Skor</th></tr>
   <tr><td>Pilihan ganda</td><td>Benar 3; memilih lebih dari satu dan salah satunya benar 2; salah 1; kosong 0</td></tr>
@@ -2130,7 +2131,8 @@ const ON={
     else if(f==='penilaian'){ a.penilaian=el.value; a.dinilai=true; }
     else if(f==='tanggapan') a.tanggapan=el.value;
     else if(f==='manual') a.skor_manual=el.value;
-    else if(f==='tambahan'){ a.tambahan=Math.max(0,parseInt(el.value,10)||0); a.dinilai=true; }
+    else if(f==='tambahan'){ a.tambahan=Math.max(0,parseInt(el.value,10)||0); if(!a.tambahan) a.tambahan_teks=[]; a.dinilai=true; }
+    else if(f==='tambahan_teks'){ a.tambahan_teks=el.value.split(/\s*;\s*/).map(z=>z.trim()).filter(Boolean).slice(0,10); a.dinilai=true; }
     else if(f==='dicek') a.dicek=el.checked;
     else if(f==='usaha'){ a.ada_usaha=el.checked; a.dinilai=true; }
     else if(f==='poin'){ const p=+el.dataset.p; const set=new Set((a.poin_terpenuhi||[]).map(Number)); el.checked?set.add(p):set.delete(p); a.poin_terpenuhi=[...set].sort((x,y)=>x-y); a.dinilai=true; }
@@ -2149,7 +2151,7 @@ document.addEventListener('input',e=>{ const k=e.target.dataset&&e.target.datase
 
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveNow(); });
 window.addEventListener('pagehide',()=>{ saveNow(); });
-window.__app={ bandingKunci, tandaiNilaiUlang, promptPerbaruiKunci, kunciKeJson, bagiRataBobot, bobotAktif, infoBobot, setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
+window.__app={ bandingKunci, tandaiNilaiUlang, promptPerbaruiKunci, kunciKeJson, bagiRataBobot, bobotAktif, infoBobot, setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, bacaNilai, bangunEntriNilai, terapkanNilai, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
 /* ============ Pemasangan offline (hanya saat dibuka lewat alamat web) ============ */
 function tampilUpdate(reg){
   if($('#updBar')) return;
