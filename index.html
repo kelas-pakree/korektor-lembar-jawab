@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.32';
+const APP_VERSION='4.33';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -1098,10 +1098,11 @@ MENGENALI SISWA
 - Urutkan siswa menurut nomor absen dari kecil ke besar.
 
 ATURAN TULIS ULANG
+- CORETAN (berlaku untuk semua jenis soal): tulisan yang dicoret (digaris, dicoret-coret, atau ditimpa) dianggap TIDAK ADA: jangan disalin, jangan dibaca, dan jangan disebut di catatan. Tanda silang atau centang pada pilihan yang dicoret atau ditimpa berarti pilihan itu dibatalkan, jadi jangan dimasukkan ke jawaban. Bila ada pengganti yang tidak dicoret, pakai yang tidak dicoret itu. Bila seluruh jawaban dicoret dan tidak ada pengganti, tulis "-". Bila kamu ragu apakah suatu goresan itu coretan (misal garis bawah, lingkaran, atau tinta tebal), jangan menebak: ikuti aturan tanda "??" di bawah.
 - PG: satu huruf pilihan. Bila ada yang dicoret lalu diganti, ambil pilihan terakhir yang tidak dicoret. Bila siswa menandai dua pilihan atau lebih tanpa mencoret, tulis semuanya dipisah koma (misal "B,C"); jangan memilihkan.
-- PGK: huruf dipisah koma dan berurutan abjad, misal "A,C".
+- PGK: huruf dipisah koma dan berurutan abjad, misal "A,C". Huruf yang tanda silangnya dicoret tidak ikut ditulis.
 - JODOH: jawaban yang ditulis siswa untuk pasangan itu.
-- ISIAN dan URAIAN: salin persis seperti tertulis, termasuk salah ejaan dan tulisan Arab. Satu jawaban satu baris; bila siswa pindah baris, gantilah dengan " / ".
+- ISIAN dan URAIAN: salin persis seperti tertulis (kecuali bagian yang dicoret, yang dilewati), termasuk salah ejaan dan tulisan Arab. Satu jawaban satu baris; bila siswa pindah baris, gantilah dengan " / ".
 - Tidak dijawab: tulis "-". Sama sekali tidak terbaca: tulis "!!".
 - Bila ada dua tafsir bacaan yang sama masuk akal: tulis tafsir yang paling mungkin, lalu " ?? " dan catatan singkat (misal "terbaca B, mungkin D"). Jangan memakai tanda ini untuk hal lain.
 - Tulis SEMUA nomor soal pada daftar untuk setiap siswa, urut seperti daftar, termasuk yang kosong.
