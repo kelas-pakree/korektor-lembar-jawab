@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.29';
+const APP_VERSION='4.30';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -682,7 +682,7 @@ function rincianKomponen(it,a){
   const P=(it.poin||[]).length; const w=bobotEfektif(it); const tot=w.reduce((s,x)=>s+x,0);
   const ok=new Set((a.poin_terpenuhi||[]).map(Number).filter(n=>n>=1&&n<=P));
   const tamb=Math.max(0,parseInt(a.tambahan,10)||0);
-  let m=0; ok.forEach(n=>{ m+=w[n-1]; }); const mt=tamb*(tot/P);
+  let m=0; ok.forEach(n=>{ m+=w[n-1]; }); const mt=tamb*Math.min(...w);
   const kom=Math.min(BOBOT_TOTAL,Math.round(BOBOT_TOTAL*(m+mt)/tot));
   return {ok,tamb,m,mt,kom,tot};
 }
@@ -1944,7 +1944,7 @@ function viewPanduan(){
   <tr><td>PG kompleks</td><td>Persis kunci 3; pilihan benar lebih banyak daripada pilihan salah 2; ada jawaban tetapi benar sama atau lebih sedikit daripada salah 1; kosong 0</td></tr>
   <tr><td>Menjodohkan</td><td>Per pasangan. Siswa boleh menulis opsi saja, jawaban saja, atau keduanya; yang tepat 3. Bila menulis opsi dan jawaban tetapi hanya salah satu yang tepat (tidak singkron) 2. Salah semua 1, kosong 0.</td></tr>
   <tr><td>Isian singkat</td><td>Tepat atau semakna 3, typo 2, salah 1, kosong 0</td></tr>
-  <tr><td>Uraian</td><td>0 sampai 5 menurut jumlah jawaban tepat dibanding yang dituntut: semua 5; kira-kira tiga perempat 4; setengah 3; ada yang tepat 2; hanya ada usaha 1; kosong 0. Yang dituntut = jumlah yang diminta soal (N). Bila soal minta 3, menyebut 3 yang tepat sudah 5 walau kunci memuat lebih banyak. Bila N lebih besar dari poin kunci, penyebutnya tetap N. Soal pointer tanpa N dianggap meminta 3 hal (bila kunci hanya punya 2 poin, yang dituntut 2). Soal non-pointer (penjelasan) dipecah menjadi 2 sampai 5 komponen jawaban yang masing-masing punya bobot (jumlah bobot 4, dibagi menurut keluasan komponen; bobot bisa diedit di langkah Kunci). Skor = 1 poin bila siswa menulis jawaban (ada usaha) + jumlah bobot komponen yang terpenuhi, maksimal 5; jawaban kosong 0; kesalahan fakta mengurangi 1 poin. Kunci berbobot lama (jumlah 5) otomatis diskalakan ke 4. Kunci non-pointer lama yang belum diberi bobot tetap memakai aturan lama (sekitar 80% unsur lengkap = nilai penuh) sampai Anda menekan <b>Bagi rata</b> atau membuat kunci ulang. Jawaban benar di luar kunci ikut dihitung (ditandai untuk dicek).</td></tr></table>
+  <tr><td>Uraian</td><td>0 sampai 5 menurut jumlah jawaban tepat dibanding yang dituntut: semua 5; kira-kira tiga perempat 4; setengah 3; ada yang tepat 2; hanya ada usaha 1; kosong 0. Yang dituntut = jumlah yang diminta soal (N). Bila soal minta 3, menyebut 3 yang tepat sudah 5 walau kunci memuat lebih banyak. Bila N lebih besar dari poin kunci, penyebutnya tetap N. Soal pointer tanpa N dianggap meminta 3 hal (bila kunci hanya punya 2 poin, yang dituntut 2). Soal non-pointer (penjelasan) dipecah menjadi 2 sampai 5 komponen jawaban yang masing-masing punya bobot (jumlah bobot 4, dibagi menurut keluasan komponen; bobot bisa diedit di langkah Kunci). Skor = 1 poin bila siswa menulis jawaban (ada usaha) + jumlah bobot komponen yang terpenuhi, maksimal 5; jawaban kosong 0; kesalahan fakta mengurangi 1 poin. Kunci berbobot lama (jumlah 5) otomatis diskalakan ke 4. Kunci non-pointer lama yang belum diberi bobot tetap memakai aturan lama (sekitar 80% unsur lengkap = nilai penuh) sampai Anda menekan <b>Bagi rata</b> atau membuat kunci ulang. Jawaban benar di luar kunci ikut dihitung (ditandai untuk dicek): tiap hal bernilai sebesar bobot komponen terkecil di kunci itu, dan nilainya tertulis di dokumen siswa.</td></tr></table>
   <p><b>Nilai akhir</b> = total poin semua jenis soal &divide; skor maksimal &times; 100, dibulatkan. Peringkat memakai total poin; poin sama berarti peringkat sama.</p></div>
   <div class="card"><h2>Pasang di GitHub dan pakai offline</h2><ol class="g">
   <li>Di github.com buat repositori <b>publik</b> (misal <i>korektor-mi</i>). Isinya hanya aplikasi, tanpa data siswa.</li>
