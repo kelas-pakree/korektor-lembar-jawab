@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.31';
+const APP_VERSION='4.32';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -894,11 +894,12 @@ function silangUraian(it,a){
 function jawabanAda(a){ return ((String(a&&a.jawaban||'').match(/[\p{L}\p{N}]/gu))||[]).length>=2; }
 function setNilai(it,a,val,ragu){
   if(it.jenis==='ISIAN'||it.jenis==='JODOH') a.penilaian=val.penilaian;
-  else if((it.poin||[]).length){ a.poin_terpenuhi=val.poin.slice(); a.ada_usaha=val.usaha||val.tambahan>0; a.tambahan=val.tambahan||0; a.tambahan_teks=(val.tambahan>0&&val.teks)?val.teks.slice():[]; a.salah_fakta=!!val.salah; }
+  else if((it.poin||[]).length){ a.poin_terpenuhi=val.poin.slice(); if(!a.tambahan_guru){ a.tambahan=val.tambahan||0; a.tambahan_teks=(val.tambahan>0&&val.teks)?val.teks.slice():[]; if(a.tambahan>0) delete a.tambahan_lama; } a.ada_usaha=val.usaha||(parseInt(a.tambahan,10)||0)>0; a.salah_fakta=!!val.salah; }
   else { a.skor_uraian=val.skor; a.ada_usaha=true; }
   a.dinilai=true; a.nilai_ragu=!!ragu; a.catatan_nilai='';
   if(it.jenis==='URAIAN'&&(it.poin||[]).length&&!(a.poin_terpenuhi||[]).length&&!(parseInt(a.tambahan,10)>0)&&a.ada_usaha===false&&jawabanAda(a)){ a.ada_usaha=true; a.nilai_ragu=true; a.catatan_nilai='Claude menilai "tanpa usaha", tetapi siswa menulis jawaban, jadi diberi skor 1. Bila memang tidak ada usaha, hapus centang "Ada usaha menjawab".'; }
-  if(it.jenis==='URAIAN'&&a.tambahan>0){ a.nilai_ragu=true; a.catatan_nilai=`Claude menghitung ${a.tambahan} jawaban benar di luar kunci. Mohon dicek.`; }
+  if(it.jenis==='URAIAN'&&a.tambahan>0&&!a.tambahan_guru){ a.nilai_ragu=true; a.catatan_nilai=`Claude menghitung ${a.tambahan} jawaban benar di luar kunci. Mohon dicek.`; }
+  if(it.jenis==='URAIAN'&&a.tambahan_lama&&!((parseInt(a.tambahan,10)||0)>0)){ a.nilai_ragu=true; a.catatan_nilai=(a.catatan_nilai?a.catatan_nilai+' ':'')+`Sebelumnya tercatat ${a.tambahan_lama.n} jawaban di luar kunci${(a.tambahan_lama.teks||[]).length?' ['+a.tambahan_lama.teks.join('; ')+']':''}, tetapi hasil baru tidak memuatnya. Pulihkan atau buang di bawah.`; }
   if(it.jenis==='URAIAN'){ const sl=silangUraian(it,a); if(sl.length){ a.nilai_ragu=true; a.catatan_nilai=(a.catatan_nilai?a.catatan_nilai+' ':'')+`Kata kunci poin ${sl.join(', ')} ada di jawaban, tetapi poin itu belum diberi. Mohon dicek.`; } }
 }
 function descNilai(it,a){
@@ -916,7 +917,7 @@ function samaNilai(it,a,v){
   if((it.poin||[]).length){
     const p=[...new Set((a.poin_terpenuhi||[]).map(Number))].sort((x,y)=>x-y).join(',');
     if(p!==v.poin.join(',')) return false;
-    if((parseInt(a.tambahan,10)||0)!==(v.tambahan||0)) return false;
+    if(!a.tambahan_guru&&(parseInt(a.tambahan,10)||0)!==(v.tambahan||0)) return false;
     if(!!a.salah_fakta!==!!v.salah) return false;
     return v.poin.length||v.tambahan?true:((a.ada_usaha!==false)===(v.usaha||jawabanAda(a)));
   }
@@ -1263,10 +1264,16 @@ function bandingKunci(lama,baru){
   L.forEach((k,no)=>{ if(!B.has(no)) r.hilang.push(no); });
   return r;
 }
-function kosongkanNilaiB(a){ a.dinilai=false; a.poin_terpenuhi=[]; a.penilaian=''; a.tambahan=0; a.tambahan_teks=[]; a.salah_fakta=false; a.ada_usaha=true; delete a.skor_uraian; a.nilai_ragu=false; a.catatan_nilai=''; }
+function kosongkanNilaiB(a,semua){
+  /* Catatan jawaban di luar kunci tidak ikut hilang: disimpan sebagai tambahan_lama; isian guru (tambahan_guru) dipertahankan. Hanya reset tahap B (semua=true) menghapusnya. */
+  const tb=parseInt(a.tambahan,10)||0;
+  if(semua){ delete a.tambahan_lama; delete a.tambahan_guru; a.tambahan=0; a.tambahan_teks=[]; }
+  else if(!a.tambahan_guru){ if(tb>0) a.tambahan_lama={n:tb,teks:(a.tambahan_teks||[]).slice()}; a.tambahan=0; a.tambahan_teks=[]; }
+  a.dinilai=false; a.poin_terpenuhi=[]; a.penilaian=''; a.salah_fakta=false; a.ada_usaha=true; delete a.skor_uraian; a.nilai_ragu=false; a.catatan_nilai='';
+}
 /* nos: nomor soal yang penilaiannya diulang (null = semua soal). dry: hanya menghitung. */
-function tandaiNilaiUlang(m,nos,dry){
-  const set=nos?new Set(nos.map(String)):null; let n=0, manual=0, terkunci=0;
+function tandaiNilaiUlang(m,nos,dry,semua){
+  const set=nos?new Set(nos.map(String)):null; let n=0, manual=0, terkunci=0, catatan=0;
   S.siswa.forEach(s=>{
     const h=m.hasil[s.id]; if(!h) return;
     let kena=0;
@@ -1276,12 +1283,12 @@ function tandaiNilaiUlang(m,nos,dry){
       const a=h.j[no]; if(!a||!a.dinilai) return;
       kena++; if(h.final) return;
       if(!kosongNilai(a.skor_manual)) manual++;
-      n++; if(!dry) kosongkanNilaiB(a);
+      n++; if((parseInt(a.tambahan,10)||0)>0||a.tambahan_lama) catatan++; if(!dry) kosongkanNilaiB(a,semua);
     });
     if(h.final&&kena) terkunci++;
   });
   if(!dry) m.entriNilai=null;
-  return {n,manual,terkunci};
+  return {n,manual,terkunci,catatan};
 }
 function kunciKeJson(m){
   return JSON.stringify({kunci:m.kunci.map(it=>{
@@ -1713,7 +1720,7 @@ function kotakPerubahanKunci(m){
   const r=m.ringkasKunci; if(!r) return '';
   const ls=a=>a.length?a.join(', '):'-';
   return `<div class="note" style="margin:8px 0"><b>Perubahan kunci terakhir</b> (${esc(new Date(r.waktu).toLocaleString('id-ID'))}): ${r.sama} soal sama, ${r.ulang.length+r.otomatis.length} soal berubah, ${r.baru.length} baru, ${r.hilang.length} hilang.<br>
-  ${r.ulang.length?`Penilaian tahap B perlu diulang untuk soal: ${esc(ls(r.ulang))} (${r.nilaiUlang} jawaban siswa sudah ditandai <i>menunggu tahap B</i>; siapkan paket di langkah 3).<br>`:''}${r.otomatis.length?`Soal PG/PGK berubah (dihitung otomatis, tidak perlu diulang): ${esc(ls(r.otomatis))}.<br>`:''}${r.bobot.length?`Bobot berubah (skor dihitung ulang otomatis): ${esc(ls(r.bobot))}.<br>`:''}${r.jenis.length?`Jenis soal berubah: ${esc(ls(r.jenis))}. Sebaiknya ulangi tahap A untuk soal ini bila format jawabannya ikut berubah.<br>`:''}${r.hilang.length?`Soal yang tidak ada lagi di kunci baru: ${esc(ls(r.hilang))} (jawaban siswa tetap tersimpan).<br>`:''}${r.manual?`${r.manual} jawaban memakai skor manual guru dan tidak diubah.<br>`:''}${r.terkunci?`${r.terkunci} siswa terkunci tidak diubah; buka kunci hasilnya bila perlu.`:''}</div>`;
+  ${r.ulang.length?`Penilaian tahap B perlu diulang untuk soal: ${esc(ls(r.ulang))} (${r.nilaiUlang} jawaban siswa sudah ditandai <i>menunggu tahap B</i>; siapkan paket di langkah 3).<br>`:''}${r.otomatis.length?`Soal PG/PGK berubah (dihitung otomatis, tidak perlu diulang): ${esc(ls(r.otomatis))}.<br>`:''}${r.bobot.length?`Bobot berubah (skor dihitung ulang otomatis): ${esc(ls(r.bobot))}.<br>`:''}${r.jenis.length?`Jenis soal berubah: ${esc(ls(r.jenis))}. Sebaiknya ulangi tahap A untuk soal ini bila format jawabannya ikut berubah.<br>`:''}${r.hilang.length?`Soal yang tidak ada lagi di kunci baru: ${esc(ls(r.hilang))} (jawaban siswa tetap tersimpan).<br>`:''}${r.manual?`${r.manual} jawaban memakai skor manual guru dan tidak diubah.<br>`:''}${r.catatan?`${r.catatan} jawaban punya catatan jawaban di luar kunci; catatan dipertahankan (isian guru tetap, hasil Claude disimpan sebagai catatan sebelumnya).<br>`:''}${r.terkunci?`${r.terkunci} siswa terkunci tidak diubah; buka kunci hasilnya bila perlu.`:''}</div>`;
 }
 function kotakReset(m){
   const n=Object.keys(m.hasil||{}).length; if(!n) return '';
@@ -1827,7 +1834,7 @@ function itemHTML(m,it,i,h){
   if(it.jenis==='URAIAN'){
     kunciTxt=`<div class="muted">${bobotAktif(it)?'Komponen jawaban:':'Poin kunci:'}</div>`;
     kontrol=(it.poin||[]).map((p,k)=>`<label class="poin"><input type="checkbox" data-on="h-field" data-no="${esc(it.no)}" data-f="poin" data-p="${k+1}" ${(a.poin_terpenuhi||[]).map(Number).includes(k+1)?'checked':''}><span>${esc(p)}${bobotAktif(it)?` <b>(${fmtBobot(bobotEfektif(it)[k])} poin)</b>`:''}</span></label>`).join('')
-      +`<label class="poin"><input type="checkbox" data-on="h-field" data-no="${esc(it.no)}" data-f="usaha" ${a.ada_usaha!==false?'checked':''}><span>Ada usaha menjawab</span></label><label class="muted" style="display:block;margin-top:4px">Jawaban benar di luar kunci: <input type="number" min="0" data-on="h-field" data-no="${esc(it.no)}" data-f="tambahan" value="${esc(a.tambahan||0)}" style="width:60px"></label><label class="muted" style="display:block;margin-top:4px">Isi jawaban di luar kunci (pisahkan dengan titik koma; tampil di dokumen dalam kurung siku): <input data-on="h-field" data-no="${esc(it.no)}" data-f="tambahan_teks" value="${esc((a.tambahan_teks||[]).join('; '))}" style="width:100%;max-width:420px"></label>`;
+      +`<label class="poin"><input type="checkbox" data-on="h-field" data-no="${esc(it.no)}" data-f="usaha" ${a.ada_usaha!==false?'checked':''}><span>Ada usaha menjawab</span></label><label class="muted" style="display:block;margin-top:4px">Jawaban benar di luar kunci: <input type="number" min="0" data-on="h-field" data-no="${esc(it.no)}" data-f="tambahan" value="${esc(a.tambahan||0)}" style="width:60px"></label><label class="muted" style="display:block;margin-top:4px">Isi jawaban di luar kunci (pisahkan dengan titik koma; tampil di dokumen dalam kurung siku): <input data-on="h-field" data-no="${esc(it.no)}" data-f="tambahan_teks" value="${esc((a.tambahan_teks||[]).join('; '))}" style="width:100%;max-width:420px"></label>`+((a.tambahan_lama&&!((parseInt(a.tambahan,10)||0)>0))?`<div class="note" style="margin:6px 0">Sebelumnya tercatat <b>${esc(a.tambahan_lama.n)}</b> jawaban di luar kunci${(a.tambahan_lama.teks||[]).length?': '+esc(a.tambahan_lama.teks.map(t=>'['+t+']').join(' ')):''}. Hasil penilaian baru tidak memuatnya.<div class="row" style="margin-top:4px"><button class="btn small" data-act="pulih-tambahan" data-no="${esc(it.no)}">Pulihkan</button><button class="btn ghost small" data-act="buang-tambahan" data-no="${esc(it.no)}">Buang</button></div></div>`:'');
   } else {
     kunciTxt=`<div class="muted">Kunci: <b>${esc(it.kunci)}</b>${it.jenis==='JODOH'&&it.teks?` = <b>${esc(it.teks)}</b>`:''}${it.jenis==='ISIAN'&&it.alt?` (alternatif: ${esc(it.alt)})`:''}</div>`;
     if(it.jenis==='ISIAN'||(it.jenis==='JODOH'&&teksKunciJodoh(it).length)) kontrol=`<label class="muted">Penilaian isian<br><select data-on="h-field" data-no="${esc(it.no)}" data-f="penilaian"><option value="">Otomatis</option>${['tepat','typo','salah'].map(v=>`<option value="${v}" ${a.penilaian===v?'selected':''}>${v[0].toUpperCase()+v.slice(1)}</option>`).join('')}</select></label>`;
@@ -1999,7 +2006,9 @@ const ACT={
   'bagi-rata-bobot'(el){ const m=getMapel(); const it=m.kunci[+el.dataset.i]; it.bobot=bagiRataBobot((it.poin||[]).length); delete it.bobotCatatan; save(); render(); },
   'hapus-soal'(el){ const m=getMapel(); m.kunci.splice(+el.dataset.i,1); save(); render(); },
   async 'salin-prompt-perbarui'(){ toast(await copyText(promptPerbaruiKunci(getMapel()))?'Prompt perbarui disalin. Tempel di chat claude.ai dan lampirkan dokumen.':'Gagal menyalin.'); },
-  'reset-b'(){ const m=getMapel(); const d=tandaiNilaiUlang(m,null,true); if(!confirm(`Hapus penilaian tahap B (${d.n} jawaban) untuk ${m.nama}? Hasil transkripsi tahap A tetap. Skor manual guru dan siswa terkunci tidak diubah.`)) return; tandaiNilaiUlang(m,null,false); save(); render(); toast(`${d.n} penilaian tahap B dikosongkan. Siapkan penilaian di langkah 3.`); },
+  'pulih-tambahan'(el){ const m=getMapel(); const a=m.hasil[ui.siswaId].j[el.dataset.no]; if(!a||!a.tambahan_lama) return; a.tambahan=a.tambahan_lama.n; a.tambahan_teks=(a.tambahan_lama.teks||[]).slice(); a.tambahan_guru=true; a.ada_usaha=true; delete a.tambahan_lama; a.dinilai=true; a.catatan_nilai=''; a.nilai_ragu=false; save(); render(); },
+  'buang-tambahan'(el){ const m=getMapel(); const a=m.hasil[ui.siswaId].j[el.dataset.no]; if(!a) return; delete a.tambahan_lama; if(/Sebelumnya tercatat/.test(a.catatan_nilai||'')){ a.catatan_nilai=''; a.nilai_ragu=false; } save(); render(); },
+  'reset-b'(){ const m=getMapel(); const d=tandaiNilaiUlang(m,null,true); if(!confirm(`Hapus penilaian tahap B (${d.n} jawaban) untuk ${m.nama}? Hasil transkripsi tahap A tetap. Skor manual guru dan siswa terkunci tidak diubah.${d.catatan?`\n${d.catatan} jawaban punya catatan jawaban di luar kunci; catatan itu IKUT dihapus.`:''}`)) return; tandaiNilaiUlang(m,null,false,true); save(); render(); toast(`${d.n} penilaian tahap B dikosongkan. Siapkan penilaian di langkah 3.`); },
   'reset-semua'(){ const m=getMapel(); const ids=Object.keys(m.hasil).filter(id=>!m.hasil[id].final); const fin=Object.keys(m.hasil).length-ids.length; if(!confirm(`Hapus SEMUA hasil ${ids.length} siswa untuk ${m.nama} (tahap A dan B)?${fin?` ${fin} siswa terkunci tetap ada.`:''} Tindakan ini tidak bisa dibatalkan. Unduh cadangan dulu bila perlu.`)) return; ids.forEach(id=>{ delete m.hasil[id]; }); m.entriNilai=null; ui.parsed=null; ui.parsedB=null; save(); render(); toast(`Hasil ${ids.length} siswa dihapus.`); },
   async 'salin-prompt-kunci'(){ toast(await copyText(promptKunci(getMapel()))?'Prompt disalin. Tempel di chat claude.ai.':'Gagal menyalin. Salin manual dari kotak prompt.'); },
   async 'salin-prompt-koreksi'(){ toast(await copyText(promptKoreksi(getMapel()))?'Prompt disalin. Tempel di chat claude.ai.':'Gagal menyalin. Buka "lihat isi" dan salin manual.'); },
@@ -2013,7 +2022,7 @@ const ACT={
       if(!confirm(pesan)) return;
       const hs=tandaiNilaiUlang({...m,kunci:r.kunci},bd.ulang,false);
       m.entriNilai=null;
-      m.ringkasKunci={waktu:new Date().toISOString(),sama:bd.sama,ulang:bd.ulang,otomatis:bd.otomatis,jenis:bd.jenis,baru:bd.baru,hilang:bd.hilang,bobot:bd.bobot,nilaiUlang:hs.n,manual:hs.manual,terkunci:hs.terkunci};
+      m.ringkasKunci={waktu:new Date().toISOString(),sama:bd.sama,ulang:bd.ulang,otomatis:bd.otomatis,jenis:bd.jenis,baru:bd.baru,hilang:bd.hilang,bobot:bd.bobot,nilaiUlang:hs.n,manual:hs.manual,terkunci:hs.terkunci,catatan:hs.catatan};
     }
     m.kunci=r.kunci; m.catatanKunci=r.catatan||''; ui.kunciText=''; save(); render(); const bm=r.kunci.filter(k=>k.cek&&k.cek.status!=='sesuai').length; toast(`${r.kunci.length} soal diterapkan.${bm?' '+bm+' soal tidak sesuai, lihat kotak peringatan.':''}`);
   },
@@ -2131,8 +2140,8 @@ const ON={
     else if(f==='penilaian'){ a.penilaian=el.value; a.dinilai=true; }
     else if(f==='tanggapan') a.tanggapan=el.value;
     else if(f==='manual') a.skor_manual=el.value;
-    else if(f==='tambahan'){ a.tambahan=Math.max(0,parseInt(el.value,10)||0); if(!a.tambahan) a.tambahan_teks=[]; a.dinilai=true; }
-    else if(f==='tambahan_teks'){ a.tambahan_teks=el.value.split(/\s*;\s*/).map(z=>z.trim()).filter(Boolean).slice(0,10); a.dinilai=true; }
+    else if(f==='tambahan'){ a.tambahan=Math.max(0,parseInt(el.value,10)||0); if(!a.tambahan) a.tambahan_teks=[]; a.tambahan_guru=true; delete a.tambahan_lama; a.dinilai=true; }
+    else if(f==='tambahan_teks'){ a.tambahan_teks=el.value.split(/\s*;\s*/).map(z=>z.trim()).filter(Boolean).slice(0,10); a.tambahan_guru=true; a.dinilai=true; }
     else if(f==='dicek') a.dicek=el.checked;
     else if(f==='usaha'){ a.ada_usaha=el.checked; a.dinilai=true; }
     else if(f==='poin'){ const p=+el.dataset.p; const set=new Set((a.poin_terpenuhi||[]).map(Number)); el.checked?set.add(p):set.delete(p); a.poin_terpenuhi=[...set].sort((x,y)=>x-y); a.dinilai=true; }
