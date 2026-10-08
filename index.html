@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.34';
+const APP_VERSION='4.35';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -1267,6 +1267,30 @@ function bandingKunci(lama,baru){
   L.forEach((k,no)=>{ if(!B.has(no)) r.hilang.push(no); });
   return r;
 }
+/* Ganti nomor soal secara aman: kunci, jawaban semua siswa, dan paket penilaian ikut dipindahkan. map = {nomorLama: nomorBaru}. */
+function ubahNomorKunci(m,map){
+  const lama=Object.keys(map).filter(k=>String(map[k]).trim()!==''&&String(map[k]).trim()!==k);
+  if(!lama.length) return {ok:true,n:0};
+  const baru={}; lama.forEach(k=>{ baru[k]=String(map[k]).trim(); });
+  const akhir=m.kunci.map(it=>baru[it.no]!==undefined?baru[it.no]:String(it.no));
+  const dup=akhir.filter((x,i)=>akhir.indexOf(x)!==i);
+  if(dup.length) return {ok:false,err:'Nomor ganda: '+[...new Set(dup)].join(', ')+'. Nomor soal harus unik.'};
+  m.kunci.forEach(it=>{ if(baru[it.no]!==undefined) it.no=baru[it.no]; });
+  Object.keys(m.hasil||{}).forEach(sid=>{
+    const j=m.hasil[sid].j||{}; const ganti={};
+    Object.keys(baru).forEach(k=>{ if(j[k]!==undefined){ ganti[k]=j[k]; delete j[k]; } });
+    Object.keys(ganti).forEach(k=>{ j[baru[k]]=ganti[k]; if(ganti[k]&&typeof ganti[k]==='object'&&ganti[k].no!==undefined) ganti[k].no=baru[k]; });
+  });
+  m.entriNilai=null;
+  return {ok:true,n:lama.length};
+}
+/* Usulan penomoran ulang JODOH bernomor huruf (16a..16e -> 16..20) */
+function usulNomorJodoh(m){
+  const map={}; let ada=false; const re=/^(\d+)[a-zA-Z]$/;
+  const grup=[]; m.kunci.forEach(it=>{ if(it.jenis!=='JODOH') return; const mm=re.exec(String(it.no)); if(!mm) return; const g=grup[grup.length-1]; if(g&&g.dasar===mm[1]) g.item.push(it); else grup.push({dasar:mm[1],item:[it]}); });
+  let n=null; grup.forEach(g=>{ let c=n===null?parseInt(g.dasar,10):Math.max(n,parseInt(g.dasar,10)); g.item.forEach(it=>{ map[it.no]=String(c); c++; ada=true; }); n=c; });
+  return ada?map:null;
+}
 function kosongkanNilaiB(a,semua){
   /* Catatan jawaban di luar kunci tidak ikut hilang: disimpan sebagai tambahan_lama; isian guru (tambahan_guru) dipertahankan. Hanya reset tahap B (semua=true) menghapusnya. */
   const tb=parseInt(a.tambahan,10)||0;
@@ -1344,7 +1368,7 @@ Jika dokumen materi tidak terlampir, tulis di "catatan_umum" bahwa materi tidak 
 KODE JENIS SOAL
 - PG = pilihan ganda biasa (kunci: satu huruf, misal "B")
 - PGK = pilihan ganda kompleks (kunci: huruf dipisah koma, misal "A,C")
-- JODOH = menjodohkan. Satu pasangan dihitung SATU entri. Beri nomor sendiri, misal "26a", "26b". "kunci": huruf opsi pasangan itu (misal "C"). "jawaban": teks yang dijodohkan pada opsi itu (misal "Zakat"); beberapa penulisan yang sama-sama benar dipisah titik koma. Siswa boleh menulis opsi saja, jawaban saja, atau keduanya.
+- JODOH = menjodohkan. Satu pasangan dihitung SATU entri. Beri nomor sesuai nomor yang tertulis di lembar soal: bila tiap pasangan punya nomor sendiri (misal 16, 17, 18, 19, 20), pakai nomor itu persis, JANGAN menambah huruf. Pakai huruf (misal "26a", "26b") hanya bila beberapa pasangan berada di bawah SATU nomor soal. "kunci": huruf opsi pasangan itu (misal "C"). "jawaban": teks yang dijodohkan pada opsi itu (misal "Zakat"); beberapa penulisan yang sama-sama benar dipisah titik koma. Siswa boleh menulis opsi saja, jawaban saja, atau keduanya.
 - ISIAN = isian singkat (kunci: jawaban utama; "alt": daftar jawaban lain yang juga benar, boleh kosong)
 - URAIAN = uraian. Tulis "poin" kunci yang singkat dan jelas, masing-masing satu gagasan yang dapat muncul pada jawaban benar.
   * Bentuk "pointer": GALI SEBANYAK MUNGKIN dari materi (sampai 10 poin, urut dari yang paling utama) agar jawaban benar siswa yang berbeda-beda terjaring, termasuk gagasan yang bisa dikaitkan dengan poin utama.
@@ -1360,7 +1384,7 @@ ${FENCE}json
  {"no":"1","jenis":"PG","kunci":"B","status_kunci":"sesuai","rujukan":"Bab 1, hlm. 5"},
  {"no":"2","jenis":"PG","kunci":"C","status_kunci":"diubah_ikut_materi","kunci_asli":"B","dasar":"Bab 2 hlm. 14: ...","rujukan":"Bab 2, hlm. 14"},
  {"no":"11","jenis":"PGK","kunci":"A,C","status_kunci":"sesuai"},
- {"no":"16a","jenis":"JODOH","kunci":"C","jawaban":"Zakat","status_kunci":"tidak_terverifikasi","dasar":"tidak ada di materi, sumber luar tidak jelas"},
+ {"no":"16","jenis":"JODOH","kunci":"C","jawaban":"Zakat","status_kunci":"tidak_terverifikasi","dasar":"tidak ada di materi, sumber luar tidak jelas"},
  {"no":"21","jenis":"ISIAN","kunci":"Jakarta","alt":["DKI Jakarta"],"status_kunci":"diubah_ikut_sumber_luar","kunci_asli":"Bandung","dasar":"Buku siswa Kemenag kelas 4, tanpa verifikasi web"},
  {"no":"26","jenis":"URAIAN","bentuk":"pointer","diminta":3,"poin":["poin kunci 1","poin kunci 2","poin kunci 3"],"kata_kunci":[["kata a","kata b"],["kata c"],["kata d","kata e"]],"status_kunci":"sesuai"},
  {"no":"27","jenis":"URAIAN","bentuk":"non-pointer","diminta":null,"poin":["komponen 1","komponen 2","komponen 3"],"bobot":[1,2,1],"kalimat":"Jawaban lengkap berupa kalimat yang memuat komponen 1, 2, dan 3.","kata_kunci":[["kata a"],["kata b","kata c"],["kata d"]],"status_kunci":"sesuai"}
@@ -1752,6 +1776,7 @@ function stepKunci(m){
   </details>${kotakReset(m)}
   <h3>Atau isi manual</h3>
   <div class="row"><select data-on="bulk-jenis">${JENIS_URUT.map(j=>`<option value="${j}" ${ui.bulkJenis===j?'selected':''}>${JENIS[j]}</option>`).join('')}</select><input type="number" min="1" max="100" value="${ui.bulkJumlah}" data-on="bulk-jumlah" style="width:80px"><span>soal</span><button class="btn small" data-act="tambah-soal">Tambah</button></div>
+  ${(usulNomorJodoh(m))?`<div class="note" style="margin:8px 0">Ada soal menjodohkan bernomor huruf (${esc(Object.keys(usulNomorJodoh(m)).slice(0,3).join(', '))}...). Bila di lembar soal tiap pasangan punya nomor sendiri, ubah ke nomor sebenarnya: <button class="btn small" data-act="urut-jodoh">Ubah ke ${esc(Object.keys(usulNomorJodoh(m)).slice(0,2).map(k=>usulNomorJodoh(m)[k]).join(', '))}, ...</button></div>`:''}
   ${m.kunci.length?`<div class="scroll" style="margin-top:10px"><table><tr><th>No</th><th>Jenis</th><th>Kunci / poin kunci / rujukan materi</th><th></th></tr>${rows}</table></div>`:''}
   </div>`;
 }
@@ -2007,6 +2032,7 @@ const ACT={
     for(let i=0;i<n;i++){ m.kunci.push({no:String(next++),jenis:ui.bulkJenis,kunci:'',alt:'',poin:[]}); }
     save(); render();
   },
+  'urut-jodoh'(){ const m=getMapel(); const map=usulNomorJodoh(m); if(!map) return; const ls=Object.keys(map).map(k=>k+' → '+map[k]).join(', '); if(!confirm('Ganti nomor soal menjodohkan: '+ls+'?\nJawaban siswa dan hasil penilaian ikut dipindahkan, tidak ada yang hilang.')) return; const r=ubahNomorKunci(m,map); if(!r.ok) return toast(r.err+' Ubah nomornya satu per satu di kolom No.'); save(); render(); toast(r.n+' nomor soal diganti.'); },
   'susun-kalimat'(el){ const m=getMapel(); const it=m.kunci[+el.dataset.i]; const P=(it.poin||[]).map(x=>String(x).trim().replace(/[.\s]+$/,'')).filter(Boolean); if(!P.length) return toast('Isi komponen jawaban dulu.'); if((it.kalimat||'').trim()&&!confirm('Kalimat yang ada akan diganti dengan susunan dari komponen. Lanjutkan?')) return; const j=P.length===1?P[0]:P.slice(0,-1).join(', ')+', dan '+P[P.length-1]; it.kalimat=j.charAt(0).toUpperCase()+j.slice(1)+'.'; save(); render(); toast('Kalimat disusun. Rapikan seperlunya.'); },
   'bagi-rata-bobot'(el){ const m=getMapel(); const it=m.kunci[+el.dataset.i]; it.bobot=bagiRataBobot((it.poin||[]).length); delete it.bobotCatatan; save(); render(); },
   'hapus-soal'(el){ const m=getMapel(); m.kunci.splice(+el.dataset.i,1); save(); render(); },
@@ -2123,6 +2149,7 @@ const ON={
     if(f==='poin') it.poin=el.value.split('\n').map(s=>s.trim()).filter(Boolean);
     else if(f==='kata') it.kata=el.value.split('\n').map(s=>s.trim());
     else if(f==='bobot'){ const tk=el.value.split(/[\s,;]+/).filter(Boolean); if(!tk.length) delete it.bobot; else it.bobot=tk.map(x=>{ const n=parseFloat(x.replace(',','.')); return Number.isFinite(n)?Math.max(0,n):0; }); delete it.bobotCatatan; }
+    else if(f==='no'){ const lamaNo=String(it.no); const baruNo=el.value.trim(); if(!baruNo||baruNo===lamaNo){ el.value=lamaNo; return; } const r=ubahNomorKunci(m,{[lamaNo]:baruNo}); if(!r.ok){ el.value=lamaNo; return toast(r.err); } save(); return render(); }
     else if(f==='jenis'||f==='bentuk'){ it[f]=el.value; save(); return render(); }
     else it[f]=el.value.trim();
     if(f==='poin'||f==='kata'){ const w=document.querySelector('[data-warn="'+el.dataset.i+'"]'); if(w) w.innerHTML=peringatanKata(it); }
@@ -2165,7 +2192,7 @@ document.addEventListener('input',e=>{ const k=e.target.dataset&&e.target.datase
 
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveNow(); });
 window.addEventListener('pagehide',()=>{ saveNow(); });
-window.__app={ bandingKunci, tandaiNilaiUlang, promptPerbaruiKunci, kunciKeJson, bagiRataBobot, bobotAktif, infoBobot, setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, bacaNilai, bangunEntriNilai, terapkanNilai, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
+window.__app={ ubahNomorKunci, usulNomorJodoh, bandingKunci, tandaiNilaiUlang, promptPerbaruiKunci, kunciKeJson, bagiRataBobot, bobotAktif, infoBobot, setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, bacaNilai, bangunEntriNilai, terapkanNilai, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
 /* ============ Pemasangan offline (hanya saat dibuka lewat alamat web) ============ */
 function tampilUpdate(reg){
   if($('#updBar')) return;
