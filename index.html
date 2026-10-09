@@ -551,13 +551,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.35';
+const APP_VERSION='4.39';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
 const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
 const MAXS = {PG:3, PGK:3, JODOH:3, ISIAN:3, URAIAN:5};
-const TANGGAPAN_URAIAN = {5:'Hebat! Jawabanmu lengkap dan tepat.',4:'Bagus! Jawabanmu hampir lengkap.',3:'Cukup baik. Jawabanmu sudah separuh jalan, lengkapi lagi ya.',2:'Kamu mulai paham. Lengkapi lagi jawabanmu ya.',1:'Terima kasih sudah mencoba. Ayo belajar lagi ya.',0:'Soal ini belum dijawab. Ayo dicoba ya.'};
+const TEKS_SALAH = 'Ayo belajar lagi ya... tetap semangat!';
+const TEKS_TULISAN = 'Menulisnya jelas dan rapi ya... !';
+const TEKS_KOSONG = 'Tes jangan suka kosongan ya...!';
+const TANGGAPAN_URAIAN = {5:'Hebat! Jawabanmu lengkap dan tepat.',4:'Bagus! Jawabanmu hampir lengkap.',3:'Cukup baik. Jawabanmu sudah separuh jalan, lengkapi lagi ya.',2:'Kamu mulai paham. Lengkapi lagi jawabanmu ya.',1:TEKS_SALAH,0:TEKS_KOSONG};
 const JENIS_DOK = {PG:'PG', PGK:'PGK', JODOH:'Menjodohkan', ISIAN:'Isian<br>Singkat', URAIAN:'Uraian'};
 const SEBUTAN_URAIAN = {5:'Hebat sekali',4:'Bagus',3:'Cukup baik',2:'Mulai paham',1:'Ayo coba lagi',0:'Belum dijawab'};
 const MAPEL_SARAN = ["Al Qur'an Hadis","Akidah Akhlak","Fikih","SKI","Bahasa Arab","Pendidikan Pancasila","Bahasa Indonesia","Matematika","IPAS","PJOK","SBdP","Bahasa Inggris","Bahasa Jawa","Ke-NU-an","Nahwu","Shorof","Durusul Fiqhiyah","Tajwid"];
@@ -747,8 +750,9 @@ function skorItem(it,a){
   if(!a) return {skor:0,max,otomatis:0,manual:false,kosong:true,sementara:false};
   const jw=String(a.jawaban==null?'':a.jawaban).trim();
   let skor=0;
-  const sementara = a.status==='tidak_terbaca' && !a.dicek;
-  if(sementara) skor=0;
+  const tt = a.status==='tidak_terbaca';
+  const sementara = tt && !a.dicek;
+  if(tt&&(!a.dicek||!jw)) skor=1; /* ada jawaban tetapi sama sekali tidak terbaca: 1 (juga setelah dicek, selama gurunya belum menuliskan isinya); kosong sungguhan: 0 */
   else if(it.jenis==='PG'){ skor=!jw?0:skorPG(it,jw); }
   else if(it.jenis==='PGK'){
     if(!jw) skor=0; else {
@@ -767,7 +771,7 @@ function skorItem(it,a){
   else if(it.jenis==='URAIAN'){ skor=skorUraian(it,a,jw); }
   let manual=false, final=skor;
   if(a.skor_manual!==''&&a.skor_manual!=null&&Number.isFinite(Number(a.skor_manual))){ final=Math.max(0,Math.min(max,Number(a.skor_manual))); manual=true; }
-  return {skor:final,max,otomatis:skor,manual,kosong:!jw,sementara};
+  return {skor:final,max,otomatis:skor,manual,kosong:!jw&&!sementara,sementara};
 }
 function hitung(m,sid){
   const h=m.hasil[sid]; if(!h) return null;
@@ -793,14 +797,15 @@ function peringkat(m){
   return {list,rank,rankKelas};
 }
 function teksOtomatis(it,a,r){
+  if(a&&a.status&&a.status!=='ok') return TEKS_TULISAN;
   if(it.jenis==='URAIAN') return TANGGAPAN_URAIAN[r.skor]||'';
-  if(r.kosong) return 'Belum dijawab. Ayo dicoba lagi lain waktu ya.';
+  if(r.kosong) return TEKS_KOSONG;
   if(r.skor>=r.max) return 'Tepat sekali, pertahankan ya!';
   if(it.jenis==='PG'&&r.skor===2) return 'Ada pilihanmu yang benar. Pilih satu jawaban saja ya.';
   if(it.jenis==='JODOH'&&r.skor===2) return 'Sebagian sudah benar. Cocokkan opsi dan jawabannya ya.';
   if(it.jenis==='PGK'&&r.skor===2) return 'Sudah ada yang benar. Coba lengkapi lagi ya.';
   if(it.jenis==='ISIAN'&&r.skor===2) return 'Hampir tepat, perhatikan cara menulisnya ya.';
-  return 'Ayo coba lagi ya.';
+  return TEKS_SALAH;
 }
 /* Baris "jawaban yang tepat" + rujukan materi untuk dokumen siswa (hanya bila skor belum penuh) */
 function rujukanMateri(it){ return (it.rujukan||'').trim()||((it.cek&&it.cek.status==='diubah_ikut_materi')?(it.cek.dasar||''):''); }
@@ -1408,11 +1413,11 @@ function docBody(m,s){
   const rows=m.kunci.map(it=>{
     const a=h.j[it.no]; const sr=skorItem(it,a);
     const tg=(a&&a.tanggapan)?a.tanggapan:(it.jenis==='URAIAN'?'':teksOtomatis(it,a,sr));
-    let jw=a&&a.jawaban?esc(a.jawaban):'<i>(tidak dijawab)</i>';
-    if(a&&a.status&&a.status!=='ok'&&!a.dicek) jw+=' <i style="color:#000">(tulisan kurang jelas, menunggu dicek guru)</i>';
+    let jw=a&&a.jawaban?esc(a.jawaban):(sr.sementara?'':(a&&a.status==='tidak_terbaca'?'<i>(tulisan tidak terbaca)</i>':'<i>(tidak dijawab)</i>'));
+    if(a&&a.status&&a.status!=='ok'&&!a.dicek) jw+=(jw?' ':'')+'<i style="color:#000">'+(a.jawaban?'(tulisan kurang jelas, menunggu dicek guru)':'(tulisan tidak terbaca, menunggu dicek guru)')+'</i>';
     const ket=keteranganUraian(it);
     const skorSel=`<b>${sr.skor}/${sr.max}</b>`;
-    return `<tr class="u"><td style="text-align:center;vertical-align:top">${esc(it.no)}</td><td>${JENIS_DOK[it.jenis]||esc(JENIS[it.jenis])}</td><td dir="auto">${jw}</td><td style="text-align:center;vertical-align:top;overflow-wrap:normal">${skorSel}</td><td>${it.jenis==='URAIAN'?(()=>{ const bl=[]; bl.push(esc(tg||TANGGAPAN_URAIAN[sr.skor]||'')); if(ket) bl.push(esc(ket)); blokUraian(it,a,sr).forEach(x=>bl.push(x)); return bl.map((x,k)=>x.startsWith('<table')?x.replace('{{SP}}',k<bl.length-1?'<tr><td colspan="3" style="border:none;padding:0;height:8pt;font-size:2pt;line-height:2pt">&nbsp;</td></tr>':''):`<p style="margin:0${k<bl.length-1?' 0 8pt':''}">${x}</p>`).join(''); })():esc(tg)+jawabanTepatHTML(it,a,sr)}</td></tr>`;
+    return `<tr class="u"><td style="text-align:center;vertical-align:top">${esc(it.no)}</td><td>${JENIS_DOK[it.jenis]||esc(JENIS[it.jenis])}</td><td dir="auto">${jw}</td><td style="text-align:center;vertical-align:top;overflow-wrap:normal">${skorSel}</td><td>${it.jenis==='URAIAN'?(()=>{ const bl=[]; bl.push(esc(tg||((a&&a.status&&a.status!=='ok')?TEKS_TULISAN:TANGGAPAN_URAIAN[sr.skor])||'')); if(ket) bl.push(esc(ket)); blokUraian(it,a,sr).forEach(x=>bl.push(x)); return bl.map((x,k)=>x.startsWith('<table')?x.replace('{{SP}}',k<bl.length-1?'<tr><td colspan="3" style="border:none;padding:0;height:8pt;font-size:2pt;line-height:2pt">&nbsp;</td></tr>':''):`<p style="margin:0${k<bl.length-1?' 0 8pt':''}">${x}</p>`).join(''); })():esc(tg)+jawabanTepatHTML(it,a,sr)}</td></tr>`;
   }).join('');
   const sub=JENIS_URUT.filter(j=>r.per[j].n).map(j=>`<tr class="u"><td>${esc(JENIS[j])}</td><td>${r.per[j].skor} dari ${r.per[j].max}</td></tr>`).join('');
   return `<div class="sd">
