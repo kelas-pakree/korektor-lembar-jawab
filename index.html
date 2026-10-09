@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.42';
+const APP_VERSION='4.43';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -1880,8 +1880,8 @@ function stepHasil(m){
   <div class="chips" style="margin-bottom:10px">${[['all','Semua'],['cek','Perlu dicek guru'],['tunggu','Menunggu tahap B'],['belum','Belum dikoreksi']].map(([k,l])=>`<button data-act="filter" data-v="${k}" class="${ui.filter===k?'on':''}">${l}</button>`).join('')}</div>
   <div class="row" style="margin-bottom:8px"><button class="btn ghost small" data-act="final-semua" data-v="1">Kunci semua hasil</button><button class="btn ghost small" data-act="final-semua" data-v="0">Buka semua kunci</button><span class="muted">Hasil terkunci tidak berubah oleh tempel ulang.</span></div>
   ${(m.uji&&m.uji.length)?`<details><summary>Riwayat uji konsistensi (${m.uji.length})</summary><table><tr><th>Waktu</th><th>Tahap</th><th>Siswa</th><th>Sama</th><th>%</th></tr>${m.uji.slice(-8).reverse().map(u=>`<tr><td>${esc(new Date(u.t).toLocaleString('id-ID'))}</td><td>${u.tahap}</td><td>${u.siswa}</td><td>${u.sama}/${u.total}</td><td>${Math.round(u.sama/u.total*100)}%</td></tr>`).join('')}</table></details>`:''}
-  <div class="scroll"><table><tr><th>No</th><th>Nama</th><th>Kelas</th><th>Skor</th><th>Nilai</th><th>Status</th><th></th></tr>
-  ${list.map(s=>{const r=hitung(m,s.id); return `<tr class="${r&&r.flags?'flag':''}"><td>${esc(absen2(s)||'-')}</td><td>${esc(s.nama)}</td><td>${esc(s.kelas)}</td><td>${r?`${r.tot}/${r.max}`:'-'}</td><td>${r?`<b>${r.nilai}</b>`:'-'}</td><td>${!r?'<span class="badge bad">Belum</span>':[r.flags?`<span class="badge warn">${r.flags} perlu dicek</span>`:'',r.belum?`<span class="badge warn">${r.belum} menunggu tahap B</span>`:'',m.hasil[s.id].final?'<span class="badge">terkunci</span>':'',(!r.flags&&!r.belum&&!m.hasil[s.id].final)?'<span class="badge">Selesai</span>':''].join(' ')}</td><td>${r?`<button class="btn small" data-act="buka-siswa" data-id="${s.id}">Tinjau</button> <button class="btn ghost small" data-act="unduh-pdf-siswa" data-id="${s.id}">PDF</button>`:''}</td></tr>`;}).join('')||'<tr><td colspan="7" class="muted">Tidak ada data.</td></tr>'}
+  <div class="scroll"><table><tr><th>No</th><th>Nama</th><th>Kelas</th><th>Skor</th><th>Nilai</th><th>Status</th><th></th><th style="text-align:right">No</th></tr>
+  ${list.map(s=>{const r=hitung(m,s.id); return `<tr class="${r&&r.flags?'flag':''}"><td>${esc(absen2(s)||'-')}</td><td>${esc(s.nama)}</td><td>${esc(s.kelas)}</td><td>${r?`${r.tot}/${r.max}`:'-'}</td><td>${r?`<b>${r.nilai}</b>`:'-'}</td><td>${!r?'<span class="badge bad">Belum</span>':[r.flags?`<span class="badge warn">${r.flags} perlu dicek</span>`:'',r.belum?`<span class="badge warn">${r.belum} menunggu tahap B</span>`:'',m.hasil[s.id].final?'<span class="badge">terkunci</span>':'',(!r.flags&&!r.belum&&!m.hasil[s.id].final)?'<span class="badge">Selesai</span>':''].join(' ')}</td><td style="width:1%;white-space:nowrap;text-align:right;padding-right:6px">${r?`<button class="btn small" data-act="buka-siswa" data-id="${s.id}">Tinjau</button> <button class="btn ghost small" data-act="unduh-pdf-siswa" data-id="${s.id}">PDF</button>`:''}</td><td style="width:1%;text-align:right">${esc(absen2(s)||'-')}</td></tr>`;}).join('')||'<tr><td colspan="8" class="muted">Tidak ada data.</td></tr>'}
   </table></div></div>`;
 }
 function itemHTML(m,it,i,h){
