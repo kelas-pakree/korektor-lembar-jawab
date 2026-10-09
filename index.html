@@ -551,7 +551,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var r,n,i,a,
 </script>
 <script>
 'use strict';
-const APP_VERSION='4.39';
+const APP_VERSION='4.41';
 function kualitasPdf(){ try{ return localStorage.getItem('korektor_kualitas_pdf')==='standar'?'standar':'tinggi'; }catch(e){ return 'tinggi'; } }
 /* ============ Konstanta ============ */
 const JENIS = {PG:'Pilihan Ganda', PGK:'Pilihan Ganda Kompleks', JODOH:'Menjodohkan', ISIAN:'Isian Singkat', URAIAN:'Uraian'};
@@ -559,6 +559,28 @@ const JENIS_URUT = ['PG','PGK','JODOH','ISIAN','URAIAN'];
 const MAXS = {PG:3, PGK:3, JODOH:3, ISIAN:3, URAIAN:5};
 const TEKS_SALAH = 'Ayo belajar lagi ya... tetap semangat!';
 const TEKS_TULISAN = 'Menulisnya jelas dan rapi ya... !';
+const PARAF_BAWAAN={url:'data:image/png;base64,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',w:320,h:260};
+const BULAN_ID=['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+async function kecilkanParaf(file){
+  const url=URL.createObjectURL(file);
+  try{ const im=await new Promise((ok,no)=>{ const i=new Image(); i.onload=()=>ok(i); i.onerror=no; i.src=url; });
+    const sk=Math.min(1,500/Math.max(im.naturalWidth,im.naturalHeight)); const w=Math.max(1,Math.round(im.naturalWidth*sk)), h=Math.max(1,Math.round(im.naturalHeight*sk));
+    const c=document.createElement('canvas'); c.width=w; c.height=h; const g=c.getContext('2d'); g.drawImage(im,0,0,w,h);
+    return {url:c.toDataURL('image/png'),w,h};
+  } finally { URL.revokeObjectURL(url); }
+}
+function tanggalId(d){ d=d||new Date(); return d.getDate()+' '+BULAN_ID[d.getMonth()]+' '+d.getFullYear(); }
+function ukuranKotak(){
+  const nm=String((S.guru&&S.guru.nama)||'').trim().toUpperCase(); const need=nm.length*0.17+0.7; const MIN=3.6, MAX=8.5;
+  const cm=Math.min(MAX,Math.max(MIN,need)); let fs=9; if(need>MAX) fs=Math.max(6,Math.floor(9*(MAX-0.7)/(nm.length*0.17)*10)/10);
+  return {cm:Math.round(cm*100)/100,fs};
+}
+function kotakParafHTML(){
+  const g=S.guru||{}; const pr=g.paraf&&g.paraf.url?g.paraf:PARAF_BAWAAN; const H=38; let h=H, w=Math.round(H*pr.w/pr.h); if(w>86){ w=86; h=Math.round(86*pr.h/pr.w); }
+  const nama=String(g.nama||'').trim().toUpperCase(); const uk=ukuranKotak();
+  const sel='border:none;padding:0 3pt;text-align:center;';
+  return `<table class="lay" style="border:none;width:100%;height:100%;margin:0;border-collapse:collapse"><tr><td style="${sel}height:22pt;vertical-align:top;padding-top:4pt;font-size:9pt">${tanggalId()}</td></tr><tr><td style="${sel}height:46pt;vertical-align:middle"><img src="${pr.url}" width="${w}" height="${h}" style="width:${w}pt;height:${h}pt" alt=""></td></tr><tr><td style="${sel}height:34pt;vertical-align:bottom;padding-bottom:4pt;font-size:9pt;white-space:nowrap">${nama?`<b><u style="font-size:${uk.fs}pt">${esc(nama)}</u></b><br>`:''}Guru Pengampu</td></tr></table>`;
+}
 const TEKS_KOSONG = 'Tes jangan suka kosongan ya...!';
 const TANGGAPAN_URAIAN = {5:'Hebat! Jawabanmu lengkap dan tepat.',4:'Bagus! Jawabanmu hampir lengkap.',3:'Cukup baik. Jawabanmu sudah separuh jalan, lengkapi lagi ya.',2:'Kamu mulai paham. Lengkapi lagi jawabanmu ya.',1:TEKS_SALAH,0:TEKS_KOSONG};
 const JENIS_DOK = {PG:'PG', PGK:'PGK', JODOH:'Menjodohkan', ISIAN:'Isian<br>Singkat', URAIAN:'Uraian'};
@@ -1421,9 +1443,9 @@ function docBody(m,s){
   }).join('');
   const sub=JENIS_URUT.filter(j=>r.per[j].n).map(j=>`<tr class="u"><td>${esc(JENIS[j])}</td><td>${r.per[j].skor} dari ${r.per[j].max}</td></tr>`).join('');
   return `<div class="sd">
-<h1 class="u">Hasil Asesmen: ${esc(m.nama)}</h1>
-<p class="u">${esc(S.agenda?S.agenda.nama:'')}<br>Nama: <b>${esc(s.nama)}</b>${s.kelas?` &nbsp; Kelas: <b>${esc(s.kelas)}</b>`:''}${s.absen?` &nbsp; No. absen: <b>${esc(s.absen)}</b>`:''}</p>
-<p class="u">Nilai akhir<br><span class="nilai">${r.nilai}</span> &nbsp; <span>(skor ${r.tot} dari ${r.max})</span></p>
+<table class="lay" style="border:none;width:100%;margin:0 0 6pt;border-collapse:collapse"><tr class="u"><td style="border:none;padding:0;vertical-align:top"><h1>Hasil Asesmen: ${esc(m.nama)}</h1>
+<p style="margin:0 0 8pt">${esc(S.agenda?S.agenda.nama:'')}<br>Nama: <b>${esc(s.nama)}</b>${s.kelas?` &nbsp; Kelas: <b>${esc(s.kelas)}</b>`:''}${s.absen?` &nbsp; No. absen: <b>${esc(s.absen)}</b>`:''}</p>
+<p style="margin:0">Nilai akhir<br><span class="nilai">${r.nilai}</span> &nbsp; <span>(skor ${r.tot} dari ${r.max})</span></p></td><td style="border:1px solid #000;padding:0;vertical-align:top;width:${ukuranKotak().cm}cm">${kotakParafHTML()}</td></tr></table>
 <table><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th>Kelompok soal</th><th>Skor</th></tr></thead><tbody>${sub}</tbody></table>
 <h3 class="u">Jawaban, skor, dan tanggapan</h3>
 <table style="table-layout:fixed;width:100%"><thead><tr class="u" style="mso-yfti-irow:0;mso-yfti-firstrow:yes"><th style="width:6%">No</th><th style="width:14%">Jenis</th><th style="width:24%">Jawabanmu</th><th style="width:7%">Skor</th><th style="width:49%">Tanggapan</th></tr></thead><tbody>${rows}</tbody></table>
@@ -1457,7 +1479,8 @@ function pdfBisaVektor(teks){ return !PDF_ARAB.test(teks)&&PDF_AMAN.test(teks); 
 /* Kumpulkan bentuk (latar, garis) dan potongan teks dari tampilan halaman, dalam px relatif terhadap root */
 function kumpulGambarPdf(root,R0){
   const wr=c=>{ const m=String(c).match(/rgba?\(([^)]+)\)/); if(!m) return null; const p=m[1].split(',').map(x=>parseFloat(x)); if(p.length>3&&p[3]===0) return null; return [p[0],p[1],p[2]]; };
-  const rects=[], teks=[], cek=[];
+  const rects=[], teks=[], cek=[], gbr=[];
+  root.querySelectorAll('img').forEach(im=>{ const r=im.getBoundingClientRect(); if(r.width&&r.height&&im.src) gbr.push({src:im.getAttribute('src'),x1:r.left-R0.left,y1:r.top-R0.top,w:r.width,h:r.height}); });
   [root,...root.querySelectorAll('*')].forEach(e=>{
     const cs=getComputedStyle(e); const r=e.getBoundingClientRect(); if(!r.width||!r.height) return;
     const bg=wr(cs.backgroundColor); const sisi=['Top','Right','Bottom','Left'].map(k=>{ const w=parseFloat(cs['border'+k+'Width'])||0; const c=wr(cs['border'+k+'Color']); return (w>0&&cs['border'+k+'Style']!=='none'&&c)?{w,c}:null; });
@@ -1480,7 +1503,7 @@ function kumpulGambarPdf(root,R0){
     }
     flush();
   }
-  return {rects,teks,cek};
+  return {rects,teks,cek,gbr};
 }
 /* Gambar isi vertikal [a,b) ke halaman jsPDF, digeser off px dari atas area isi */
 function gambarRentangPdf(pdf,G,a,b,off,MM,MARGIN){
@@ -1504,6 +1527,7 @@ function gambarRentangPdf(pdf,G,a,b,off,MM,MARGIN){
     const wt=(t.rEnd-t.left)*MM, w0=pdf.getTextWidth(t.t), n=t.t.length;
     pdf.text(t.t,t.left*MM,Y(t.top+t.h*0.81),{charSpace:n>1?(wt-w0)/(n-1):0});
   });
+  G.gbr.forEach(g=>{ const cy=g.y1+g.h/2; if(cy<a||cy>=b) return; try{ pdf.addImage(g.src,'PNG',g.x1*MM,Y(g.y1),g.w*MM,g.h*MM); }catch(e){} });
   pdf.setLineCap('round'); pdf.setLineJoin('round');
   G.cek.forEach(c=>{
     const cy=c.top+c.h/2; if(cy<a||cy>=b) return;
@@ -1538,7 +1562,7 @@ async function pdfSiswa(m,s){
     const root=host.querySelector('#pdfroot');
     const vektor=pdfBisaVektor(root.textContent+' '+labelDok(m,s));
     /* jalur vektor memakai Arial agar lebar huruf sama dengan Helvetica di PDF */
-    if(vektor) host.insertAdjacentHTML('afterbegin','<style>.sd,.sd *{font-family:Arial,Helvetica,"Liberation Sans",Arimo,sans-serif!important}.sd table,.sd table *{font-size:9.5pt!important}.sd th,.sd th *{font-size:11pt!important}</style>');
+    if(vektor) host.insertAdjacentHTML('afterbegin','<style>.sd,.sd *{font-family:Arial,Helvetica,"Liberation Sans",Arimo,sans-serif!important}.sd table:not(.lay),.sd table:not(.lay) *{font-size:9.5pt!important}.sd th,.sd th *{font-size:11pt!important}.sd table.lay td{font-size:inherit}</style>');
     if(document.fonts&&document.fonts.ready) await document.fonts.ready;
     const R0=root.getBoundingClientRect(); const H=Math.ceil(R0.height);
     const rect=e=>{const r=e.getBoundingClientRect();return {t:r.top-R0.top,b:r.bottom-R0.top};};
@@ -1917,7 +1941,11 @@ function viewRekap(){
   ${S.mapel.map(m=>{const pk=peringkat(m); return pk.list.length?`<div class="card"><h3 style="margin-top:0">${esc(m.nama)}: 10 peringkat teratas</h3><table><tr><th>Peringkat</th><th>Nama</th><th>Kelas</th><th>Nilai</th></tr>${pk.list.slice(0,10).map(x=>`<tr><td>${pk.rank.get(x.s.id)}</td><td>${esc(x.s.nama)}</td><td>${esc(x.s.kelas)}</td><td>${x.r.nilai}</td></tr>`).join('')}</table></div>`:'';}).join('')}`;
 }
 function viewPengaturan(){
-  return `<div class="card"><h2>Cadangan data</h2><p class="muted">Data tersimpan di browser perangkat ini. Membersihkan data browser akan menghapusnya, jadi simpan cadangan berkala.</p>
+  const g=S.guru||{}; const pr=g.paraf&&g.paraf.url?g.paraf:PARAF_BAWAAN;
+  return `<div class="card"><h2>Guru pengampu & paraf</h2><p class="muted">Muncul di kotak pojok kanan atas dokumen siswa (.doc dan PDF), bersama tanggal dokumen dibuat. Tanpa paraf unggahan, dokumen memakai tanda ceklis.</p>
+  <div class="row"><input data-on="guru-nama" value="${esc(g.nama||'')}" placeholder="Nama guru pengampu" style="flex:1;min-width:240px"></div>
+  <div class="row" style="margin-top:8px;align-items:center"><img src="${pr.url}" alt="paraf" style="height:48px;border:1px solid #ccc;padding:4px;background:#fff"><button class="btn small" data-act="paraf-pilih">Unggah paraf/tanda tangan</button><button class="btn ghost small" data-act="paraf-hapus" ${g.paraf?'':'disabled'}>Hapus paraf</button><input type="file" id="fParaf" accept="image/png,image/jpeg" hidden data-on="file-paraf"></div></div>
+  <div class="card"><h2>Cadangan data</h2><p class="muted">Data tersimpan di browser perangkat ini. Membersihkan data browser akan menghapusnya, jadi simpan cadangan berkala.</p>
   <div class="row"><button class="btn" data-act="cadangan">Unduh cadangan (JSON)</button><button class="btn ghost" data-act="pulihkan">Pulihkan dari cadangan</button><input type="file" id="fPulih" accept=".json" hidden data-on="file-pulih"></div></div>
   <div class="card"><h2>Kualitas PDF</h2><p class="muted">Dokumen tanpa huruf Arab selalu dibuat dengan huruf vektor yang tajam dan berkas kecil. Pilihan ini hanya untuk dokumen yang memuat huruf Arab (tulisan berupa gambar): Tinggi lebih tajam tetapi berkas lebih besar, Standar berkas lebih kecil dengan tulisan agak lembut.</p>
   <div class="row"><select data-on="kualitas-pdf"><option value="tinggi" ${kualitasPdf()==='tinggi'?'selected':''}>Tinggi (disarankan)</option><option value="standar" ${kualitasPdf()==='standar'?'selected':''}>Standar (berkas kecil)</option></select></div></div>
@@ -2120,15 +2148,19 @@ const ACT={
     <li>Ketik <b>HAPUS</b> untuk konfirmasi:<br><input id="konfirmReset" placeholder="HAPUS"></li></ol>
     <div class="row end"><button class="btn ghost" data-act="tutup-modal">Batal</button><button class="btn danger" data-act="reset-ya">Hapus & mulai baru</button></div></div></div>`;
   },
+  'paraf-pilih'(){ $('#fParaf').click(); },
+  'paraf-hapus'(){ if(S.guru) delete S.guru.paraf; save(); render(); toast('Paraf dihapus; dokumen memakai ceklis.'); },
   async 'arsip-modal'(){ await unduhArsip(); },
   'tutup-modal'(){ $('#modal').innerHTML=''; },
   async 'reset-ya'(){
     if($('#konfirmReset').value.trim().toUpperCase()!=='HAPUS') return toast('Ketik HAPUS dulu untuk konfirmasi.');
-    S=fresh(); ui={...ui,tab:'beranda',mapelId:null,siswaId:null,parsed:null,parsedB:null,nilaiText:'',kunciText:'',hasilText:''};
+    const gk=S.guru; S=fresh(); if(gk) S.guru=gk; ui={...ui,tab:'beranda',mapelId:null,siswaId:null,parsed:null,parsedB:null,nilaiText:'',kunciText:'',hasilText:''};
     await fileClear(); await saveNow(); $('#modal').innerHTML=''; render(); toast('Agenda baru siap dimulai.');
   }
 };
 const ON={
+  'guru-nama'(el){ S.guru=S.guru||{}; S.guru.nama=el.value.trim(); save(); toast('Nama guru tersimpan.'); },
+  async 'file-paraf'(el){ const f=el.files[0]; el.value=''; if(!f) return; try{ S.guru=S.guru||{}; S.guru.paraf=await kecilkanParaf(f); save(); render(); toast('Paraf tersimpan.'); }catch(e){ toast('Gambar tidak bisa dibaca.'); } },
   'kualitas-pdf'(el){ try{ localStorage.setItem('korektor_kualitas_pdf',el.value==='standar'?'standar':'tinggi'); }catch(e){} toast('Kualitas PDF: '+(el.value==='standar'?'Standar':'Tinggi')); },
   'agenda-nama'(el){ S.agenda.nama=el.value.trim()||S.agenda.nama; save(); },
   async 'file-impor'(el){
@@ -2197,7 +2229,7 @@ document.addEventListener('input',e=>{ const k=e.target.dataset&&e.target.datase
 
 document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveNow(); });
 window.addEventListener('pagehide',()=>{ saveNow(); });
-window.__app={ ubahNomorKunci, usulNomorJodoh, bandingKunci, tandaiNilaiUlang, promptPerbaruiKunci, kunciKeJson, bagiRataBobot, bobotAktif, infoBobot, setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, bacaNilai, bangunEntriNilai, terapkanNilai, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
+window.__app={ ukuranKotak, tanggalId, kotakParafHTML, ubahNomorKunci, usulNomorJodoh, bandingKunci, tandaiNilaiUlang, promptPerbaruiKunci, kunciKeJson, bagiRataBobot, bobotAktif, infoBobot, setNilai, samaNilai, namaBerkas, labelDok, ketidaksesuaian, sheetCatatanKunci, cocokAbsen, cocokkanBatch, pdfSiswa, unduhZip, normAbsen, huruf, norm, daftarKelas, get S(){return S;}, set S(v){S=v;}, get ui(){return ui;}, skorItem, hitung, peringkat, bacaKunci, bacaHasil, bacaNilai, bangunEntriNilai, terapkanNilai, normalJawaban, docSiswa, bukuRekap, promptKoreksi, promptKunci, promptTranskrip, promptNilai, bangunEntriNilai, bacaNilai, terapkanNilai, bacaTranskrip, bandingA, pesanUmum, silangUraian, perluNilai, ACT, ON, render, isianOtomatis, skorUraian };
 /* ============ Pemasangan offline (hanya saat dibuka lewat alamat web) ============ */
 function tampilUpdate(reg){
   if($('#updBar')) return;
